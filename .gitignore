@@ -1,8 +1,5 @@
 # Binaries (anchored to root)
 /bin/
-/server
-/preloader
-/cli
 libonnxruntime.so
 
 # Model Cache

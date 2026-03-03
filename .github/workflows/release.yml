@@ -73,11 +73,12 @@ jobs:
       - name: Build Binaries
         shell: bash
         run: |
+          mkdir -p bin
           EXT=""
           if [[ "${{ matrix.target }}" == windows* ]]; then EXT=".exe"; fi
-          CGO_ENABLED=1 go build -v -o server${EXT} ./cmd/server/main.go
-          CGO_ENABLED=1 go build -v -o preloader${EXT} ./cmd/preloader/main.go
-          CGO_ENABLED=1 go build -v -o cli${EXT} ./cmd/cli/main.go
+          CGO_ENABLED=1 go build -v -o bin/server${EXT} ./cmd/server/main.go
+          CGO_ENABLED=1 go build -v -o bin/preloader${EXT} ./cmd/preloader/main.go
+          CGO_ENABLED=1 go build -v -o bin/cli${EXT} ./cmd/cli/main.go
 
       - name: Package
         shell: bash
@@ -86,7 +87,7 @@ jobs:
           EXT=""
           if [[ "${{ matrix.target }}" == windows* ]]; then EXT=".exe"; fi
           
-          cp server${EXT} preloader${EXT} cli${EXT} release/
+          cp bin/server${EXT} bin/preloader${EXT} bin/cli${EXT} release/
           cp LICENSE README.md config.yaml release/
           cp ${{ matrix.onnx_lib }} release/
           

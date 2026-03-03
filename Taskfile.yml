@@ -27,7 +27,7 @@ tasks:
       ONNX_PATH: "{{.TASKFILE_DIR}}/libonnxruntime.so"
       GOWORK: "off"
     cmds:
-      - go run ./cmd/server/main.go
+      - ./bin/server
 
   preload:
     desc: Preload models (Go version with HF_TOKEN support)
@@ -35,7 +35,7 @@ tasks:
       ONNX_PATH: "{{.TASKFILE_DIR}}/libonnxruntime.so"
       GOWORK: "off"
     cmds:
-      - go run ./cmd/preloader/main.go
+      - ./bin/preloader
 
   preload-docker:
     desc: Preload models using Python in Docker
@@ -59,7 +59,7 @@ tasks:
       ONNX_PATH: "{{.TASKFILE_DIR}}/libonnxruntime.so"
       GOWORK: "off"
     cmds:
-      - go run ./cmd/cli/main.go {{.CLI_ARGS}}
+      - ./bin/cli {{.CLI_ARGS}}
 
   clean:
     desc: Remove binaries

@@ -18,7 +18,7 @@ func TestHandleTags(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	manager := embedding.NewManager("./test_cache")
 	models := []ConfigModel{{Name: "test-model", Dim: 384, Description: "Test"}}
-	handler := NewHandler(manager, models, "test-model")
+	handler := NewHandler(manager, models, "test-model", 4)
 	r := gin.Default()
 	r.GET("/api/tags", handler.HandleTags)
 	w := httptest.NewRecorder()
@@ -46,7 +46,7 @@ func TestHandleHealth(t *testing.T) {
 func TestHandleEmbedFaker(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	models := []ConfigModel{{Name: "test", Dim: 8}}
-	handler := NewHandler(nil, models, "test")
+	handler := NewHandler(nil, models, "test", 4)
 	r := gin.Default()
 	r.POST("/api/embed/faker", handler.HandleEmbedFaker)
 

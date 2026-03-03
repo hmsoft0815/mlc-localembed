@@ -42,9 +42,17 @@ type Config struct {
 func main() {
 	fmt.Printf("Starting mlc-localembed %s\n", api.Version)
 	// 1. Load config
-	configFile, err := os.ReadFile("config.yaml")
+	configPath := "config.yaml"
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		// Try parent directory (if run from bin/)
+		if _, err := os.Stat("../config.yaml"); err == nil {
+			configPath = "../config.yaml"
+		}
+	}
+
+	configFile, err := os.ReadFile(configPath)
 	if err != nil {
-		log.Printf("warning: config.yaml not found, using defaults and environment variables")
+		log.Printf("warning: %s not found, using defaults and environment variables", configPath)
 	}
 
 	var config Config

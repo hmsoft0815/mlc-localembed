@@ -43,7 +43,7 @@ func NewCustomEmbedder(modelPath string, dim int, intraThreads, interThreads int
 	// 1. Load Tokenizer
 	tk, err := pretrained.FromFile(filepath.Join(modelPath, "tokenizer.json"))
 	if err != nil {
-		return nil, fmt.Errorf("failed to load tokenizer: %w", err)
+		return nil, fmt.Errorf("failed to load tokenizer at %s: %w", modelPath, err)
 	}
 
 	maxLen := 512
@@ -54,12 +54,17 @@ func NewCustomEmbedder(modelPath string, dim int, intraThreads, interThreads int
 	if !ort.IsInitialized() {
 		onnxPath := os.Getenv("ONNX_PATH")
 		if onnxPath == "" {
-			// Try absolute path in current workspace
-			absPath := "/mnt/data2tb/mlcmcp/mcp-proxy/toolrag/localembed/libonnxruntime.so"
-			if _, err := os.Stat(absPath); err == nil {
-				onnxPath = absPath
-			} else if _, err := os.Stat("libonnxruntime.so"); err == nil {
-				onnxPath = "libonnxruntime.so"
+			// Search for libonnxruntime.so in common locations
+			searchPaths := []string{
+				"libonnxruntime.so",
+				"../libonnxruntime.so",
+				"/mnt/data2tb/mlcmcp/mcp-proxy/toolrag/localembed/libonnxruntime.so",
+			}
+			for _, p := range searchPaths {
+				if _, err := os.Stat(p); err == nil {
+					onnxPath = p
+					break
+				}
 			}
 		}
 		if onnxPath != "" {
@@ -109,7 +114,7 @@ func NewCustomEmbedder(modelPath string, dim int, intraThreads, interThreads int
 	)
 	if err != nil {
 		t1.Destroy(); t2.Destroy(); t3.Destroy(); tOut.Destroy()
-		return nil, fmt.Errorf("failed to create session: %w", err)
+		return nil, fmt.Errorf("failed to create session for %s: %w", modelPath, err)
 	}
 
 	return &CustomEmbedder{
@@ -202,6 +207,9 @@ func (e *CustomEmbedder) Embed(docs []string) ([][]float32, error) {
 func (e *CustomEmbedder) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if e.session == nil {
+		return nil
+	}
 	for _, t := range e.tensors {
 		t.Destroy()
 	}
@@ -218,6 +226,17 @@ type Manager struct {
 }
 
 func NewManager(cacheDir string) *Manager {
+	// If cacheDir is relative (like "./mlcembed"), we should ensure it's found
+	// even if running from 'bin/'.
+	if cacheDir != "" && !filepath.IsAbs(cacheDir) {
+		if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
+			parentCache := filepath.Join("..", cacheDir)
+			if _, err := os.Stat(parentCache); err == nil {
+				cacheDir = parentCache
+			}
+		}
+	}
+
 	return &Manager{
 		cacheDir: cacheDir,
 		models:   make(map[string]Embedder),

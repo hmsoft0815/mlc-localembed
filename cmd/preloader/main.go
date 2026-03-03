@@ -66,9 +66,17 @@ func downloadFile(url, dest, token string) error {
 }
 
 func main() {
-	configFile, err := os.ReadFile("config.yaml")
+	configPath := "config.yaml"
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		// Try parent directory (if run from bin/)
+		if _, err := os.Stat("../config.yaml"); err == nil {
+			configPath = "../config.yaml"
+		}
+	}
+
+	configFile, err := os.ReadFile(configPath)
 	if err != nil {
-		log.Fatalf("Fehler beim Lesen der config.yaml: %v", err)
+		log.Fatalf("Fehler beim Lesen der %s: %v", configPath, err)
 	}
 
 	var config Config

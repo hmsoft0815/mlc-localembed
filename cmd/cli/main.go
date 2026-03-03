@@ -28,9 +28,17 @@ func main() {
 	flag.Parse()
 
 	// 1. Load config
-	configFile, err := os.ReadFile("config.yaml")
+	configPath := "config.yaml"
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		// Try parent directory (if run from bin/)
+		if _, err := os.Stat("../config.yaml"); err == nil {
+			configPath = "../config.yaml"
+		}
+	}
+
+	configFile, err := os.ReadFile(configPath)
 	if err != nil {
-		log.Fatalf("failed to read config: %v", err)
+		log.Fatalf("failed to read %s: %v", configPath, err)
 	}
 
 	var config Config
