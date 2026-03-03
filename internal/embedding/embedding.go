@@ -215,17 +215,22 @@ func (m *Manager) GetEmbedder(name string) (Embedder, error) {
 	}
 
 	// Map name to folder (matching preloader logic)
-	folderName := "models--" + strings.ReplaceAll(name, "/", "--")
-	if !strings.Contains(name, "/") {
-		folderName = "models--qdrant--" + name
+	// We check for both our custom naming and the default naming
+	var path string
+	if name == "multilingual-e5-small" {
+		path = filepath.Join(m.cacheDir, "fast-multilingual-e5-small")
+	} else if name == "BAAI/bge-small-en-v1.5" {
+		path = filepath.Join(m.cacheDir, "fast-bge-small-en-v1.5")
+	} else {
+		folderName := "models--" + strings.ReplaceAll(name, "/", "--")
+		if !strings.Contains(name, "/") {
+			folderName = "models--qdrant--" + name
+		}
+		path = filepath.Join(m.cacheDir, folderName)
 	}
-	path := filepath.Join(m.cacheDir, folderName)
 
-	// Determine dimension (this should ideally come from a config or model info)
-	dim := 384 // Default for many small models
-	if strings.Contains(name, "e5-small") || strings.Contains(name, "bge-small") {
-		dim = 384
-	}
+	// Determine dimension
+	dim := 384
 
 	newEmb, err := NewCustomEmbedder(path, dim, intra, inter)
 	if err != nil {
