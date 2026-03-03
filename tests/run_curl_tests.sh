@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configuration
-BASE_URL=${MLC_BASE_URL:-"http://localhost:9000"}
+BASE_URL=${MLC_BASE_URL:-"http://localhost:9142"}
 MODEL=${MLC_TEST_MODEL:-"multilingual-e5-small"}
 
 echo "--- Testing mlc-localembed API at $BASE_URL ---"

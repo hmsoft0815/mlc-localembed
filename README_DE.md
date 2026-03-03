@@ -36,7 +36,7 @@ Die Einstellungen werden über die `config.yaml` oder Umgebungsvariablen (diese 
 
 | Variable | Beschreibung | Standardwert |
 |----------|-------------|---------|
-| `MLC_PORT` | Server-Port | `9000` |
+| `MLC_PORT` | Server-Port | `9142` |
 | `MLC_LOG_LEVEL` | Log-Level (`info`, `debug`) | `info` |
 | `MLC_CACHE_DIR` | Pfad zum Modell-Cache | `./mlcembed` |
 | `MLC_INTRA_THREADS` | ONNX intra-op Threads | Aus Config |
@@ -82,7 +82,7 @@ Startet den Ollama-kompatiblen API-Server.
 ```bash
 ./bin/server
 ```
-Der Server ist standardmäßig unter `http://localhost:9000` erreichbar.
+Der Server ist standardmäßig unter `http://localhost:9142` erreichbar.
 
 ### 3. CLI-Tool (`bin/cli`)
 Ein einfaches Werkzeug, um Embeddings direkt über die Kommandozeile zu testen.

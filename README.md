@@ -36,7 +36,7 @@ Settings are managed via `config.yaml` or environment variables (which take prec
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `MLC_PORT` | Server port | `9000` |
+| `MLC_PORT` | Server port | `9142` |
 | `MLC_LOG_LEVEL` | Log level (`info`, `debug`) | `info` |
 | `MLC_CACHE_DIR` | Path to model cache | `./mlcembed` |
 | `MLC_INTRA_THREADS` | ONNX intra-op threads | From config |

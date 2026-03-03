@@ -1,5 +1,5 @@
 server:
-  port: 9000
+  port: 9142
   log_level: "info"
 
 storage:
