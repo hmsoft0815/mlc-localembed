@@ -28,13 +28,13 @@ type CustomEmbedder struct {
 	session   *ort.AdvancedSession
 	dim       int
 	maxLen    int
-	
+
 	// Buffers for input/output to avoid allocations
 	inputIds      []int64
 	attentionMask []int64
 	tokenTypeIds  []int64
 	outputData    []float32
-	
+
 	tensors []ort.ArbitraryTensor
 	mu      sync.Mutex
 }
@@ -180,7 +180,7 @@ func (e *CustomEmbedder) Embed(docs []string) ([][]float32, error) {
 				embedding[j] += e.outputData[i*e.dim+j]
 			}
 		}
-		
+
 		// Normalize
 		norm := float32(0.0)
 		for j := 0; j < e.dim; j++ {
@@ -193,7 +193,7 @@ func (e *CustomEmbedder) Embed(docs []string) ([][]float32, error) {
 				embedding[j] /= norm
 			}
 		}
-		
+
 		results[idx] = embedding
 	}
 	return results, nil

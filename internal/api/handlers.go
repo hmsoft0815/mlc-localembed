@@ -183,16 +183,16 @@ func (h *Handler) HandleEmbed(c *gin.Context) {
 
 	if err != nil {
 		slog.Error("Embedding failed", "model", req.Model, "error", err)
-		
+
 		errMsg := err.Error()
 		// Return 400 for user errors
-		if strings.Contains(errMsg, "token limit") || 
-		   strings.Contains(errMsg, "empty document") || 
+		if strings.Contains(errMsg, "token limit") ||
+		   strings.Contains(errMsg, "empty document") ||
 		   strings.Contains(errMsg, "no documents") {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
 			return
 		}
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": errMsg})
 		return
 	}
@@ -253,11 +253,11 @@ func (h *Handler) HandleSimilarity(c *gin.Context) {
 
 	if err != nil {
 		slog.Error("Similarity failed", "model", req.Model, "error", err)
-		
+
 		errMsg := err.Error()
 		// Return 400 for user errors
-		if strings.Contains(errMsg, "token limit") || 
-		   strings.Contains(errMsg, "empty document") || 
+		if strings.Contains(errMsg, "token limit") ||
+		   strings.Contains(errMsg, "empty document") ||
 		   strings.Contains(errMsg, "no documents") {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
 			return
