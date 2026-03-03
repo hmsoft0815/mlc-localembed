@@ -327,10 +327,9 @@ func NewCustomEmbedderWithFile(modelPath, onnxPath string, dim int, intraThreads
 	}
 	defer options.Destroy()
 
-	if interThreads > 0 {
-		options.SetInterOpNumThreads(interThreads)
+	if intraThreads > 0 {
+		options.SetIntraOpNumThreads(intraThreads)
 	}
-
 	if interThreads > 0 {
 		options.SetInterOpNumThreads(interThreads)
 	}
