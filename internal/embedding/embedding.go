@@ -53,7 +53,17 @@ func NewCustomEmbedder(modelPath string, dim int, intraThreads, interThreads int
 
 	// 2. Initialize ONNX Environment if needed
 	if !ort.IsInitialized() {
-		if onnxPath := os.Getenv("ONNX_PATH"); onnxPath != "" {
+		onnxPath := os.Getenv("ONNX_PATH")
+		if onnxPath == "" {
+			// Try absolute path in current workspace
+			absPath := "/mnt/data2tb/mlcmcp/mcp-proxy/toolrag/localembed/libonnxruntime.so"
+			if _, err := os.Stat(absPath); err == nil {
+				onnxPath = absPath
+			} else if _, err := os.Stat("libonnxruntime.so"); err == nil {
+				onnxPath = "libonnxruntime.so"
+			}
+		}
+		if onnxPath != "" {
 			ort.SetSharedLibraryPath(onnxPath)
 		}
 		if err := ort.InitializeEnvironment(); err != nil {
