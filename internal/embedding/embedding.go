@@ -327,12 +327,14 @@ func NewCustomEmbedderWithFile(modelPath, onnxPath string, dim int, intraThreads
 	}
 	defer options.Destroy()
 
-	if intraThreads > 0 {
-		options.SetIntraOpNumThreads(intraThreads)
-	}
 	if interThreads > 0 {
 		options.SetInterOpNumThreads(interThreads)
 	}
+
+	if interThreads > 0 {
+		options.SetInterOpNumThreads(interThreads)
+	}
+
 
 	// 3. Prepare pre-allocated buffers
 	inputShape := ort.NewShape(1, int64(maxLen))

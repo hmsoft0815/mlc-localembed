@@ -98,7 +98,11 @@ jobs:
           
           cd release
           if [[ "${{ matrix.archive_ext }}" == "zip" ]]; then
-            zip -r ../mlc-localembed-${{ matrix.target }}.zip *
+            if command -v zip >/dev/null 2>&1; then
+              zip -r ../mlc-localembed-${{ matrix.target }}.zip *
+            else
+              7z a ../mlc-localembed-${{ matrix.target }}.zip *
+            fi
           else
             tar -czf ../mlc-localembed-${{ matrix.target }}.tar.gz *
           fi
