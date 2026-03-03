@@ -46,10 +46,8 @@ func NewCustomEmbedder(modelPath string, dim int, intraThreads, interThreads int
 	}
 
 	maxLen := 512
-	tk.WithTruncation(&tokenizer.TruncationParams{
-		MaxLength: maxLen,
-		Strategy:  tokenizer.LongestFirst,
-	})
+	// We disable auto-truncation to detect when input is too long
+	tk.WithTruncation(nil)
 
 	// 2. Initialize ONNX Environment if needed
 	if !ort.IsInitialized() {
@@ -127,16 +125,29 @@ func NewCustomEmbedder(modelPath string, dim int, intraThreads, interThreads int
 }
 
 func (e *CustomEmbedder) Embed(docs []string) ([][]float32, error) {
+	if len(docs) == 0 {
+		return nil, fmt.Errorf("no documents provided")
+	}
+
 	results := make([][]float32, len(docs))
 	for idx, doc := range docs {
+		if doc == "" {
+			return nil, fmt.Errorf("empty document at index %d", idx)
+		}
+
 		en, err := e.tokenizer.EncodeSingle(doc)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to encode document at index %d: %w", idx, err)
+		}
+
+		tokenCount := len(en.GetIds())
+		if tokenCount > e.maxLen {
+			return nil, fmt.Errorf("document at index %d exceeds token limit: %d > %d", idx, tokenCount, e.maxLen)
 		}
 
 		// Reset buffers
 		for i := 0; i < e.maxLen; i++ {
-			if i < len(en.GetIds()) {
+			if i < tokenCount {
 				e.inputIds[i] = int64(en.GetIds()[i])
 				e.attentionMask[i] = int64(en.GetAttentionMask()[i])
 				e.tokenTypeIds[i] = int64(en.GetTypeIds()[i])
@@ -148,13 +159,18 @@ func (e *CustomEmbedder) Embed(docs []string) ([][]float32, error) {
 		}
 
 		if err := e.session.Run(); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("ONNX execution failed for document %d: %w", idx, err)
 		}
 
 		// Mean Pooling
 		embedding := make([]float32, e.dim)
-		count := float32(len(en.GetIds()))
-		for i := 0; i < len(en.GetIds()); i++ {
+		count := float32(tokenCount)
+		if count == 0 {
+			results[idx] = embedding // All zeros
+			continue
+		}
+
+		for i := 0; i < tokenCount; i++ {
 			for j := 0; j < e.dim; j++ {
 				embedding[j] += e.outputData[i*e.dim+j]
 			}
