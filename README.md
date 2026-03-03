@@ -72,8 +72,14 @@ models:
   available:
     - name: "multilingual-e5-small"
       enabled: true
+    - name: "nomic-ai/nomic-embed-text-v1.5"
+      enabled: true # Excellent performance and Ollama parity
+    - name: "Xenova/bge-small-en-v1.5"
+      enabled: true # Highly optimized English embeddings
+    - name: "all-minilm"
+      enabled: true # Fast and lightweight
     - name: "BAAI/bge-small-en-v1.5"
-      enabled: false # Disabled by default due to Intel VNNI instruction requirements
+      enabled: false # Standard version, often requires Intel VNNI
 ```
 
 > **Note**: I am currently only testing with the models listed above. If you discover other models that work well with this infrastructure, please let me know! I would be happy to include them in the default configuration.

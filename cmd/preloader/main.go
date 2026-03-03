@@ -3,6 +3,10 @@
 
 package main
 
+// note - it is difficult to test this in an automated way, as it depends on external resources (Hugging Face repos) and user input (HF token).
+// The main purpose of this preloader is to simplify the initial setup for users by automatically downloading necessary model files based on a config.yaml.
+// It can be run manually before starting the main application.
+
 import (
 	"bufio"
 	"fmt"
@@ -31,13 +35,13 @@ type Config struct {
 
 func downloadFile(url, dest, token string) error {
 	fmt.Printf("Downloading %s\n", url)
-	
+
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
 	}
-	
+
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -99,28 +103,28 @@ func main() {
 		"multilingual-e5-small":  "intfloat/multilingual-e5-small",
 		"BAAI/bge-small-en-v1.5": "qdrant/bge-small-en-v1.5-onnx-q",
 	}
-	
+
 	for _, m := range config.Models.Available {
 		repo := m.SourceRepo
 		if repo == "" {
 			repo = repos[m.Name]
 		}
-		
+
 		if repo == "" {
 			fmt.Printf("Kein Repo für %s definiert.\n", m.Name)
 			continue
 		}
 
 		fmt.Printf("\n--- Lade Modell: %s ---\n", m.Name)
-		
+
 		folderName := "models--" + strings.ReplaceAll(m.Name, "/", "--")
 		if !strings.Contains(m.Name, "/") {
 			folderName = "models--qdrant--" + m.Name
 		}
-		
+
 		destDir := filepath.Join(config.Storage.CacheDir, folderName)
 		baseURL := fmt.Sprintf("https://huggingface.co/%s/resolve/main", repo)
-		
+
 		// 1. JSON Konfigurationsdateien laden
 		jsonFiles := []string{"tokenizer.json", "config.json", "tokenizer_config.json", "special_tokens_map.json"}
 		for _, file := range jsonFiles {
@@ -148,12 +152,12 @@ func main() {
 		if onnxFile == "" {
 			onnxFile = "model.onnx"
 		}
-		
+
 		// Simple normalization: if we expect it in the root of destDir
 		// but it has a path in HF repo (like "onnx/model.onnx")
 		localOnnxFile := filepath.Base(onnxFile)
 		destPath := filepath.Join(destDir, localOnnxFile)
-		
+
 		// Wenn Datei existiert und > 200MB ist (für E5), wollen wir die Xeon-Version erzwingen
 		isLarge := false
 		if info, err := os.Stat(destPath); err == nil {
@@ -169,7 +173,7 @@ func main() {
 				modelVariants = []string{m.ModelFile}
 			} else if m.Name == "multilingual-e5-small" {
 				modelVariants = []string{
-					"onnx/model_qint8_avx512_vnni.onnx", 
+					"onnx/model_qint8_avx512_vnni.onnx",
 					"onnx/model_O4.onnx",
 					"onnx/model.onnx",
 					"model.onnx",
