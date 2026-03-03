@@ -4,6 +4,7 @@
 package api
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -35,4 +36,52 @@ func TestStatsCollector(t *testing.T) {
 	assert.Equal(t, int64(2), stats.TotalRequests)
 	assert.Equal(t, Version, stats.Version)
 	assert.NotNil(t, stats.Models[model])
+}
+
+func TestStatsCollector_MultiModel(t *testing.T) {
+	s := NewStatsCollector()
+	
+	s.RecordRequest("model-A", 100*time.Millisecond)
+	s.RecordRequest("model-B", 200*time.Millisecond)
+	s.RecordRequest("model-A", 300*time.Millisecond)
+
+	stats := s.GetStats()
+	assert.Equal(t, int64(3), stats.TotalRequests)
+	assert.Equal(t, int64(2), stats.Models["model-A"].RequestCount)
+	assert.Equal(t, int64(1), stats.Models["model-B"].RequestCount)
+	assert.Equal(t, 200.0, stats.Models["model-A"].AvgDurationMs)
+	assert.Equal(t, 200.0, stats.Models["model-B"].AvgDurationMs)
+}
+
+func TestStatsCollector_Concurrency(t *testing.T) {
+	s := NewStatsCollector()
+	var wg sync.WaitGroup
+	
+	numRoutines := 10
+	requestsPerRoutine := 100
+	
+	for i := 0; i < numRoutines; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			model := "model-concurrent"
+			if id%2 == 0 {
+				model = "model-even"
+			}
+			for j := 0; j < requestsPerRoutine; j++ {
+				s.RecordRequest(model, 10*time.Millisecond)
+			}
+		}(i)
+	}
+	
+	wg.Wait()
+	
+	stats := s.GetStats()
+	expectedTotal := int64(numRoutines * requestsPerRoutine)
+	assert.Equal(t, expectedTotal, stats.TotalRequests)
+	
+	// Total for specific models should also be correct
+	countConcurrent := stats.Models["model-concurrent"].RequestCount
+	countEven := stats.Models["model-even"].RequestCount
+	assert.Equal(t, int64(numRoutines*requestsPerRoutine), countConcurrent+countEven)
 }
