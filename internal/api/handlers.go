@@ -73,9 +73,10 @@ type ConfigModel struct {
 }
 
 type Handler struct {
-	manager     *embedding.Manager
+	manager      *embedding.Manager
 	configModels []ConfigModel
 	defaultModel string
+	stats        *StatsCollector
 }
 
 // HandleEmbedFaker returns dummy embeddings for testing
@@ -123,9 +124,10 @@ func (h *Handler) HandleEmbedFaker(c *gin.Context) {
 
 func NewHandler(manager *embedding.Manager, models []ConfigModel, defaultModel string) *Handler {
 	return &Handler{
-		manager:     manager,
+		manager:      manager,
 		configModels: models,
 		defaultModel: defaultModel,
+		stats:        NewStatsCollector(),
 	}
 }
 
@@ -172,19 +174,21 @@ func (h *Handler) HandleEmbed(c *gin.Context) {
 
 	if err != nil {
 		slog.Error("Embedding failed", "model", req.Model, "error", err)
-
+		
 		errMsg := err.Error()
 		// Return 400 for user errors
-		if strings.Contains(errMsg, "token limit") ||
-		   strings.Contains(errMsg, "empty document") ||
+		if strings.Contains(errMsg, "token limit") || 
+		   strings.Contains(errMsg, "empty document") || 
 		   strings.Contains(errMsg, "no documents") {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
 			return
 		}
-
+		
 		c.JSON(http.StatusInternalServerError, gin.H{"error": errMsg})
 		return
 	}
+
+	h.stats.RecordRequest(req.Model, duration)
 
 	slog.Info("Embedding request",
 		"model", req.Model,
@@ -228,16 +232,19 @@ func (h *Handler) HandleSimilarity(c *gin.Context) {
 		return
 	}
 
+	start := time.Now()
 	// 1. Get embeddings for all texts (Query + Documents)
 	allTexts := append([]string{req.Query}, req.Documents...)
 	embeddings, err := h.manager.Embed(req.Model, allTexts)
+	duration := time.Since(start)
+
 	if err != nil {
 		slog.Error("Similarity failed", "model", req.Model, "error", err)
-
+		
 		errMsg := err.Error()
 		// Return 400 for user errors
-		if strings.Contains(errMsg, "token limit") ||
-		   strings.Contains(errMsg, "empty document") ||
+		if strings.Contains(errMsg, "token limit") || 
+		   strings.Contains(errMsg, "empty document") || 
 		   strings.Contains(errMsg, "no documents") {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
 			return
@@ -246,6 +253,8 @@ func (h *Handler) HandleSimilarity(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": errMsg})
 		return
 	}
+
+	h.stats.RecordRequest(req.Model, duration)
 
 	queryEmb := embeddings[0]
 	docEmbeddings := embeddings[1:]
@@ -267,4 +276,8 @@ func (h *Handler) HandleSimilarity(c *gin.Context) {
 		Model:  req.Model,
 		Scores: results,
 	})
+}
+
+func (h *Handler) HandleStats(c *gin.Context) {
+	c.JSON(http.StatusOK, h.stats.GetStats())
 }

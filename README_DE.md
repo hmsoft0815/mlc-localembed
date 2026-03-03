@@ -2,7 +2,7 @@
   <img src="docs/minilogo884x484.png" width="300" alt="mlc-localembed logo">
 </p>
 
-# mlc-localembed v0.2.0
+# mlc-localembed v0.3.0
 
 [![Go Version](https://img.shields.io/github/go-mod/go-version/hmsoft0815/mlc-localembed)](https://golang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -30,6 +30,7 @@ Dies sollte auf moderner Hardware (z.B. M1 etc.) kein Problem sein – aber seie
 - **Konfigurierbar**: Modelle und Runtime-Einstellungen lassen sich einfach über YAML verwalten.
 - **Ressourcen-Management**: Integrierter Schutz für Multi-Core-Systeme (Xeon Freeze-Schutz).
 - **Netzwerk-Isolation**: 100% Air-Gapped Laufzeit, sobald die Modelle vorgeladen sind.
+- **Monitoring**: Integrierte Statistik- und Health-Endpunkte für den Produktionseinsatz.
 
 ## Konfiguration
 
@@ -99,8 +100,9 @@ Ein einfaches Werkzeug, um Embeddings direkt über die Kommandozeile zu testen.
 
 - `POST /api/embed`: Erzeugt Embeddings für einen oder mehrere Strings (Ollama-kompatibel).
 - `GET /api/tags`: Listet verfügbare und aktivierte Modelle auf (Ollama-kompatibel).
-- `GET /api/health`: Einfacher Gesundheitscheck.
-- `POST /api/test/similarity`: **(Neu in v0.2.0)** Direkter Vergleich einer Suchanfrage mit mehreren Dokumenten, um semantische Ähnlichkeitswerte zu erhalten.
+- `GET /api/health`: Einfacher Gesundheitscheck (gibt Status und Version zurück).
+- `GET /api/stats`: **(Neu in v0.3.0)** Gibt Nutzungsstatistiken zurück (Anzahl der Anfragen, Uptime, durchschnittliche Verarbeitungszeit pro Modell).
+- `POST /api/test/similarity`: Direkter Vergleich einer Suchanfrage mit mehreren Dokumenten, um semantische Ähnlichkeitswerte zu erhalten.
 
 ### Similarity API Beispiel
 
@@ -110,19 +112,8 @@ curl -X POST http://localhost:9142/api/test/similarity \
   -d '{
     "model": "multilingual-e5-small",
     "query": "Was ist die Hauptstadt von Frankreich?",
-    "documents": ["Paris ist die Hauptstadt.", "Berlin liegt in Deutschland.", "Die Sonne ist ein Stern."]
+    "documents": ["Paris ist die Hauptstadt.", "Berlin liegt in Deutschland."]
   }'
-```
-**Antwort:**
-```json
-{
-  "model": "multilingual-e5-small",
-  "scores": [
-    { "document": "Paris ist die Hauptstadt.", "score": 0.9115 },
-    { "document": "Berlin liegt in Deutschland.", "score": 0.8593 },
-    { "document": "Die Sonne ist ein Stern.", "score": 0.8685 }
-  ]
-}
 ```
 
 ## Tests

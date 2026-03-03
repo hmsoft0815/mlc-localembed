@@ -2,7 +2,7 @@
   <img src="docs/minilogo884x484.png" width="300" alt="mlc-localembed logo">
 </p>
 
-# mlc-localembed v0.2.0
+# mlc-localembed v0.3.0
 
 [![Go Version](https://img.shields.io/github/go-mod/go-version/hmsoft0815/mlc-localembed)](https://golang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -30,6 +30,7 @@ This should not be a problem on modern hardware (e.g. M1 etc) - but be warned, o
 - **Configurable**: Easily manage models and runtime settings via YAML.
 - **Resource Management**: Built-in protection for multi-core systems (Xeon freeze protection).
 - **Network Isolation**: 100% air-gapped runtime once models are preloaded.
+- **Monitoring**: Built-in statistics and health endpoints for production usage.
 
 ## Configuration
 
@@ -99,8 +100,9 @@ A simple tool to test embeddings directly from the command line.
 
 - `POST /api/embed`: Generate embeddings for one or more strings (Ollama compatible).
 - `GET /api/tags`: List available and enabled models (Ollama compatible).
-- `GET /api/health`: Basic health check.
-- `POST /api/test/similarity`: **(New in v0.2.0)** Directly compare a query against multiple documents to get semantic similarity scores.
+- `GET /api/health`: Basic health check (returns version and status).
+- `GET /api/stats`: **(New in v0.3.0)** Returns usage statistics (request counts, uptime, average processing time per model).
+- `POST /api/test/similarity`: Directly compare a query against multiple documents to get semantic similarity scores.
 
 ### Similarity API Example
 
@@ -112,17 +114,6 @@ curl -X POST http://localhost:9142/api/test/similarity \
     "query": "Which city is the capital of France?",
     "documents": ["Paris is the capital.", "Berlin is in Germany.", "The sun is a star."]
   }'
-```
-**Response:**
-```json
-{
-  "model": "multilingual-e5-small",
-  "scores": [
-    { "document": "Paris is the capital.", "score": 0.9115 },
-    { "document": "Berlin is in Germany.", "score": 0.8593 },
-    { "document": "The sun is a star.", "score": 0.8685 }
-  ]
-}
 ```
 
 ## Testing

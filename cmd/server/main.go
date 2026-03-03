@@ -107,6 +107,7 @@ func main() {
 	r.GET("/api/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok", "version": api.Version})
 	})
+	r.GET("/api/stats", handler.HandleStats)
 	r.POST("/api/embed/faker", handler.HandleEmbedFaker)
 	r.POST("/api/test/similarity", handler.HandleSimilarity)
 

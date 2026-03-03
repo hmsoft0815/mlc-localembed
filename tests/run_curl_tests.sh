@@ -100,8 +100,19 @@ else
     echo "Response: $sim_resp"
 fi
 
-# 7. Model Handling Test:
-echo "7. Model Handling Test:"
+# 7. Stats API
+echo -n "7. Stats API: "
+stats_resp=$(curl -s "$BASE_URL/api/stats")
+if [[ $stats_resp == *"total_requests"* ]]; then
+    uptime=$(echo $stats_resp | grep -o "\"uptime_seconds\":[0-9]*" | cut -d: -f2)
+    echo "OK (Uptime: ${uptime}s)"
+else
+    echo "FAILED"
+    echo "Response: $stats_resp"
+fi
+
+# 8. Model Handling Test:
+echo "8. Model Handling Test:"
 MODEL_DISABLED="BAAI/bge-small-en-v1.5"
 echo -n "   - Requesting enabled model ($MODEL): "
 curl -s -X POST "$BASE_URL/api/embed" -H "Content-Type: application/json" -d "{\"model\": \"$MODEL\", \"input\": \"test\"}" | grep -q "embeddings" && echo "OK" || echo "FAILED"
@@ -115,8 +126,8 @@ else
     echo "Response: $resp_disabled"
 fi
 
-# 8. Error Handling Tests
-echo "8. Error Handling Tests:"
+# 9. Error Handling Tests
+echo "9. Error Handling Tests:"
 
 echo -n "   - Empty input: "
 empty_resp=$(curl -s -X POST "$BASE_URL/api/embed" -H "Content-Type: application/json" -d "{\"model\": \"$MODEL\", \"input\": \"\"}")
@@ -134,4 +145,3 @@ else
 fi
 
 echo "--- Tests completed ---"
-
