@@ -36,6 +36,7 @@ type CustomEmbedder struct {
 	outputData    []float32
 	
 	tensors []ort.ArbitraryTensor
+	mu      sync.Mutex
 }
 
 func NewCustomEmbedder(modelPath string, dim int, intraThreads, interThreads int) (*CustomEmbedder, error) {
@@ -129,6 +130,10 @@ func (e *CustomEmbedder) Embed(docs []string) ([][]float32, error) {
 		return nil, fmt.Errorf("no documents provided")
 	}
 
+	// Protect shared buffers and session
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	results := make([][]float32, len(docs))
 	for idx, doc := range docs {
 		if doc == "" {
@@ -195,6 +200,8 @@ func (e *CustomEmbedder) Embed(docs []string) ([][]float32, error) {
 }
 
 func (e *CustomEmbedder) Close() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	for _, t := range e.tensors {
 		t.Destroy()
 	}

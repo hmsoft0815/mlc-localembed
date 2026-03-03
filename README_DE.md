@@ -2,7 +2,7 @@
   <img src="docs/minilogo884x484.png" width="300" alt="mlc-localembed logo">
 </p>
 
-# mlc-localembed v0.3.0
+# mlc-localembed v0.3.1
 
 [![Go Version](https://img.shields.io/github/go-mod/go-version/hmsoft0815/mlc-localembed)](https://golang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -31,6 +31,7 @@ Dies sollte auf moderner Hardware (z.B. M1 etc.) kein Problem sein – aber seie
 - **Ressourcen-Management**: Integrierter Schutz für Multi-Core-Systeme (Xeon Freeze-Schutz).
 - **Netzwerk-Isolation**: 100% Air-Gapped Laufzeit, sobald die Modelle vorgeladen sind.
 - **Monitoring**: Integrierte Statistik- und Health-Endpunkte für den Produktionseinsatz.
+- **Stabilität**: Schutz vor Speicherüberlastung durch konfigurierbare Nebenläufigkeitsbegrenzung (Concurrency Limit).
 
 ## Konfiguration
 
@@ -42,6 +43,7 @@ Die Einstellungen werden über die `config.yaml` oder Umgebungsvariablen (diese 
 |----------|-------------|---------|
 | `MLC_PORT` | Server-Port | `9142` |
 | `MLC_LOG_LEVEL` | Log-Level (`info`, `debug`) | `info` |
+| `MLC_MAX_CONCURRENCY` | Globales Limit für gleichzeitige Anfragen | `4` |
 | `MLC_CACHE_DIR` | Pfad zum Modell-Cache | `./mlcembed` |
 | `MLC_INTRA_THREADS` | ONNX intra-op Threads | Aus Config |
 | `MLC_INTER_THREADS` | ONNX inter-op Threads | Aus Config |
@@ -112,7 +114,7 @@ curl -X POST http://localhost:9142/api/test/similarity \
   -d '{
     "model": "multilingual-e5-small",
     "query": "Was ist die Hauptstadt von Frankreich?",
-    "documents": ["Paris ist die Hauptstadt.", "Berlin liegt in Deutschland."]
+    "documents": ["Paris ist die Hauptstadt.", "Berlin liegt in Deutschland.", "Die Sonne ist ein Stern."]
   }'
 ```
 

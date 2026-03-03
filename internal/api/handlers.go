@@ -77,6 +77,7 @@ type Handler struct {
 	configModels []ConfigModel
 	defaultModel string
 	stats        *StatsCollector
+	concurrency  chan struct{}
 }
 
 // HandleEmbedFaker returns dummy embeddings for testing
@@ -122,12 +123,16 @@ func (h *Handler) HandleEmbedFaker(c *gin.Context) {
        c.JSON(200, resp)
 }
 
-func NewHandler(manager *embedding.Manager, models []ConfigModel, defaultModel string) *Handler {
+func NewHandler(manager *embedding.Manager, models []ConfigModel, defaultModel string, maxConcurrency int) *Handler {
+	if maxConcurrency <= 0 {
+		maxConcurrency = 4
+	}
 	return &Handler{
 		manager:      manager,
 		configModels: models,
 		defaultModel: defaultModel,
 		stats:        NewStatsCollector(),
+		concurrency:  make(chan struct{}, maxConcurrency),
 	}
 }
 
@@ -167,6 +172,10 @@ func (h *Handler) HandleEmbed(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "input must be string or array of strings"})
 		return
 	}
+
+	// Apply concurrency limit
+	h.concurrency <- struct{}{}
+	defer func() { <-h.concurrency }()
 
 	start := time.Now()
 	embeddings, err := h.manager.Embed(req.Model, inputs)
@@ -231,6 +240,10 @@ func (h *Handler) HandleSimilarity(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Apply concurrency limit
+	h.concurrency <- struct{}{}
+	defer func() { <-h.concurrency }()
 
 	start := time.Now()
 	// 1. Get embeddings for all texts (Query + Documents)

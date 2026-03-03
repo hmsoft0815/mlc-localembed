@@ -22,8 +22,9 @@ import (
 
 type Config struct {
 	Server struct {
-		Port     int    `yaml:"port"`
-		LogLevel string `yaml:"log_level"`
+		Port           int    `yaml:"port"`
+		LogLevel       string `yaml:"log_level"`
+		MaxConcurrency int    `yaml:"max_concurrency"`
 	} `yaml:"server"`
 	Storage struct {
 		CacheDir string `yaml:"cache_dir"`
@@ -60,6 +61,9 @@ func main() {
 	if val := os.Getenv("MLC_LOG_LEVEL"); val != "" {
 		config.Server.LogLevel = val
 	}
+	if val := os.Getenv("MLC_MAX_CONCURRENCY"); val != "" {
+		fmt.Sscanf(val, "%d", &config.Server.MaxConcurrency)
+	}
 	if val := os.Getenv("MLC_CACHE_DIR"); val != "" {
 		config.Storage.CacheDir = val
 	}
@@ -76,6 +80,9 @@ func main() {
 	// Set defaults if still zero
 	if config.Server.Port == 0 {
 		config.Server.Port = 9142
+	}
+	if config.Server.MaxConcurrency == 0 {
+		config.Server.MaxConcurrency = 4
 	}
 	if config.Storage.CacheDir == "" {
 		config.Storage.CacheDir = "./mlcembed"
@@ -94,7 +101,7 @@ func main() {
 	}
 
 	// 3. Initialize API handler
-	handler := api.NewHandler(manager, availableModels, config.Models.Default)
+	handler := api.NewHandler(manager, availableModels, config.Models.Default, config.Server.MaxConcurrency)
 
 	// 4. Setup Gin
 	if config.Server.LogLevel == "info" {
