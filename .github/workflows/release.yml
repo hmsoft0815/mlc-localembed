@@ -19,17 +19,22 @@ jobs:
             target: linux-amd64
             onnx_url: "https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-linux-x64-1.17.0.tgz"
             onnx_lib: "libonnxruntime.so.1.17.0"
-            binary_ext: ""
+            archive_ext: "tar.gz"
           - os: macos-latest
             target: darwin-arm64
             onnx_url: "https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-osx-arm64-1.17.0.tgz"
             onnx_lib: "libonnxruntime.1.17.0.dylib"
-            binary_ext: ""
+            archive_ext: "tar.gz"
           - os: macos-12
             target: darwin-amd64
             onnx_url: "https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-osx-x86_64-1.17.0.tgz"
             onnx_lib: "libonnxruntime.1.17.0.dylib"
-            binary_ext: ""
+            archive_ext: "tar.gz"
+          - os: windows-latest
+            target: windows-amd64
+            onnx_url: "https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-win-x64-1.17.0.zip"
+            onnx_lib: "onnxruntime.dll"
+            archive_ext: "zip"
 
     steps:
       - name: Checkout code
@@ -41,39 +46,47 @@ jobs:
           go-version: '1.25.0'
 
       - name: Download ONNX Runtime
+        shell: bash
         run: |
-          curl -L ${{ matrix.onnx_url }} -o onnxruntime.tgz
-          tar -xzf onnxruntime.tgz
+          if [[ "${{ matrix.target }}" == windows* ]]; then
+            curl -L ${{ matrix.onnx_url }} -o onnxruntime.zip
+            unzip onnxruntime.zip
+          else
+            curl -L ${{ matrix.onnx_url }} -o onnxruntime.tgz
+            tar -xzf onnxruntime.tgz
+          fi
           # Move library to root for building and packaging
           find . -name "${{ matrix.onnx_lib }}" -exec cp {} . \;
-          # Create symlinks for common names
+          # Create symlinks/copies for common names
           if [[ "${{ matrix.target }}" == linux* ]]; then
             ln -sf ${{ matrix.onnx_lib }} libonnxruntime.so
-          else
+          elif [[ "${{ matrix.target }}" == darwin* ]]; then
             ln -sf ${{ matrix.onnx_lib }} libonnxruntime.dylib
           fi
 
       - name: Debug - List Files
+        shell: bash
         run: |
           pwd
           ls -R
 
-      - name: Build Server
+      - name: Build Binaries
+        shell: bash
         run: |
-          CGO_ENABLED=1 go build -v -o server${{ matrix.binary_ext }} ./cmd/server/main.go
-
-      - name: Build Preloader
-        run: |
-          CGO_ENABLED=1 go build -v -o preloader${{ matrix.binary_ext }} ./cmd/preloader/main.go
-
-      - name: Build CLI
-        run: |
-          CGO_ENABLED=1 go build -v -o cli${{ matrix.binary_ext }} ./cmd/cli/main.go
+          EXT=""
+          if [[ "${{ matrix.target }}" == windows* ]]; then EXT=".exe"; fi
+          CGO_ENABLED=1 go build -v -o server${EXT} ./cmd/server/main.go
+          CGO_ENABLED=1 go build -v -o preloader${EXT} ./cmd/preloader/main.go
+          CGO_ENABLED=1 go build -v -o cli${EXT} ./cmd/cli/main.go
 
       - name: Package
+        shell: bash
         run: |
           mkdir -p release
-          cp server${{ matrix.binary_ext }} preloader${{ matrix.binary_ext }} cli${{ matrix.binary_ext }} release/
+          EXT=""
+          if [[ "${{ matrix.target }}" == windows* ]]; then EXT=".exe"; fi
+          
+          cp server${EXT} preloader${EXT} cli${EXT} release/
           cp LICENSE README.md config.yaml release/
           cp ${{ matrix.onnx_lib }} release/
           
@@ -83,11 +96,15 @@ jobs:
           echo "Models are not included in this release. Use the './preloader' tool to download them." >> release/README.md
           
           cd release
-          tar -czf ../mlc-localembed-${{ matrix.target }}.tar.gz *
+          if [[ "${{ matrix.archive_ext }}" == "zip" ]]; then
+            zip -r ../mlc-localembed-${{ matrix.target }}.zip *
+          else
+            tar -czf ../mlc-localembed-${{ matrix.target }}.tar.gz *
+          fi
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
         with:
-          files: mlc-localembed-${{ matrix.target }}.tar.gz
+          files: mlc-localembed-${{ matrix.target }}.${{ matrix.archive_ext }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
