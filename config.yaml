@@ -10,27 +10,46 @@ onnx:
   intra_op_num_threads: 4
   inter_op_num_threads: 4
 
+migration:
+  data_dir: "./docs"
+  embeddings_dir: "./embeddings"
+  auto_migrate: true
+
 models:
   default: "multilingual-e5-small"
   available:
     - name: "multilingual-e5-small"
+      aliases: ["tukia/text-embedding-multilingual-e5-small", "qllama/multilingual-e5-small"]
       dim: 384
       description: "Fast multilingual embedding"
+      query_prefix: "query: "
+      document_prefix: "passage: "
       enabled: true
     - name: "BAAI/bge-small-en-v1.5"
       dim: 384
       description: "Fast English embedding"
+      query_prefix: "Represent this sentence for searching relevant passages: "
       enabled: false
     - name: "Xenova/bge-small-en-v1.5"
       source_repo: "Xenova/bge-small-en-v1.5"
       model_file: "onnx/model.onnx"
       dim: 384
       description: "Xenova optimized English embedding"
+      query_prefix: "Represent this sentence for searching relevant passages: "
       enabled: true
     - name: "all-minilm"
       source_repo: "Xenova/all-MiniLM-L6-v2"
-      model_file: "onnx/model.onnx"
+      model_file: "model.onnx"
       pooling: "mean"
       dim: 384
       description: "Standard symmetric embedding for comparison"
+      enabled: true
+    - name: "nomic-ai/nomic-embed-text-v1.5"
+      aliases: ["nomic-embed-text"]
+      source_repo: "nomic-ai/nomic-embed-text-v1.5"
+      model_file: "model.onnx"
+      dim: 768
+      description: "Ollama default - High performance, long context"
+      query_prefix: "search_query: "
+      document_prefix: "search_document: "
       enabled: true

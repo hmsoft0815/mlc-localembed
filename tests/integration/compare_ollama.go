@@ -72,7 +72,12 @@ func main() {
 	}
 
 	fmt.Printf("Custom Vector (first 5): %v\n", vecCustom[:5])
-	fmt.Printf("Ollama Vector (first 5): %v\n\n", vecOllama[:5])
+	fmt.Printf("Ollama Vector (first 5): %v\n", vecOllama[:5])
+
+	magCustom := magnitude(vecCustom)
+	magOllama := magnitude(vecOllama)
+	fmt.Printf("Magnitude Custom: %.6f\n", magCustom)
+	fmt.Printf("Magnitude Ollama: %.6f\n\n", magOllama)
 
 	similarity := cosineSimilarity(vecCustom, vecOllama)
 
@@ -86,6 +91,14 @@ func main() {
 	} else {
 		fmt.Println("❌ KRITISCH: Große Abweichung! Prüfe Pooling, Normalisierung oder Präfixe.")
 	}
+}
+
+func magnitude(v []float32) float64 {
+	var sum float64
+	for _, x := range v {
+		sum += float64(x) * float64(x)
+	}
+	return math.Sqrt(sum)
 }
 
 func fetchVector(url, model, input string, isOllama bool) ([]float32, error) {

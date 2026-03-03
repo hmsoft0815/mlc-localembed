@@ -97,14 +97,14 @@ func (e *CustomEmbedder) Embed(docs []string) ([][]float32, error) {
 			return nil, fmt.Errorf("empty document at index %d", idx)
 		}
 
-		en, err := e.tokenizer.EncodeSingle(doc)
+		en, err := e.tokenizer.EncodeSingle(doc, true)
 		if err != nil {
 			return nil, fmt.Errorf("failed to encode document at index %d: %w", idx, err)
 		}
 
 		tokenCount := len(en.GetIds())
 		if tokenCount > e.maxLen {
-			return nil, fmt.Errorf("document at index %d exceeds token limit: %d > %d", idx, tokenCount, e.maxLen)
+			tokenCount = e.maxLen
 		}
 
 		// Reset buffers
@@ -158,7 +158,7 @@ func (e *CustomEmbedder) Embed(docs []string) ([][]float32, error) {
 			normSum += float64(embedding[j]) * float64(embedding[j])
 		}
 		norm := float32(math.Sqrt(normSum))
-		
+
 		if norm > 0 {
 			for j := 0; j < e.dim; j++ {
 				embedding[j] /= norm
@@ -189,8 +189,10 @@ type Manager struct {
 	mu                sync.RWMutex
 	onnxIntraThreads int
 	onnxInterThreads int
-	configModels     map[string]string // model name -> custom filename
+	configFiles      map[string]string // model name -> custom filename
+	configDims       map[string]int    // model name -> dimension
 	poolingConfigs   map[string]string // model name -> pooling strategy
+	aliases          map[string]string // alias -> primary name
 }
 
 func NewManager(cacheDir string) *Manager {
@@ -208,15 +210,24 @@ func NewManager(cacheDir string) *Manager {
 	return &Manager{
 		cacheDir:       cacheDir,
 		models:         make(map[string]Embedder),
-		configModels:   make(map[string]string),
+		configFiles:    make(map[string]string),
+		configDims:     make(map[string]int),
 		poolingConfigs: make(map[string]string),
+		aliases:        make(map[string]string),
 	}
 }
 
-func (m *Manager) SetModelConfig(name, filename string) {
+func (m *Manager) SetModelConfig(name, filename string, dim int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.configModels[name] = filename
+	m.configFiles[name] = filename
+	m.configDims[name] = dim
+}
+
+func (m *Manager) AddAlias(primary, alias string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.aliases[alias] = primary
 }
 
 func (m *Manager) SetPoolingConfig(name, pooling string) {
@@ -232,12 +243,24 @@ func (m *Manager) SetOnnxOptions(intra, inter int) {
 	m.onnxInterThreads = inter
 }
 
-func (m *Manager) GetEmbedder(name string) (Embedder, error) {
+func (m *Manager) resolveName(name string) string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if primary, ok := m.aliases[name]; ok {
+		return primary
+	}
+	return name
+}
+
+func (m *Manager) GetEmbedder(requestedName string) (Embedder, error) {
+	name := m.resolveName(requestedName)
+
 	m.mu.RLock()
 	emb, ok := m.models[name]
 	intra := m.onnxIntraThreads
 	inter := m.onnxInterThreads
-	customFile := m.configModels[name]
+	customFile := m.configFiles[name]
+	dim := m.configDims[name]
 	pooling := m.poolingConfigs[name]
 	m.mu.RUnlock()
 	if ok {
@@ -253,13 +276,13 @@ func (m *Manager) GetEmbedder(name string) (Embedder, error) {
 	// Map name to folder
 	var path string
 	var possibleFolders []string
-	
+
 	if name == "multilingual-e5-small" {
 		possibleFolders = append(possibleFolders, "fast-multilingual-e5-small", "models--qdrant--multilingual-e5-small")
 	} else if name == "BAAI/bge-small-en-v1.5" {
 		possibleFolders = append(possibleFolders, "fast-bge-small-en-v1.5", "models--BAAI--bge-small-en-v1.5")
 	}
-	
+
 	folderName := "models--" + strings.ReplaceAll(name, "/", "--")
 	if !strings.Contains(name, "/") {
 		folderName = "models--qdrant--" + name
@@ -278,7 +301,10 @@ func (m *Manager) GetEmbedder(name string) (Embedder, error) {
 		return nil, fmt.Errorf("model folder not found for %s in %s (tried %v)", name, m.cacheDir, possibleFolders)
 	}
 
-	dim := 384
+	if dim == 0 {
+		dim = 384 // Fallback
+	}
+
 	onnxFile := "model.onnx"
 	if customFile != "" {
 		onnxFile = customFile
@@ -290,14 +316,15 @@ func (m *Manager) GetEmbedder(name string) (Embedder, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if pooling != "" {
 		newEmb.SetPooling(pooling)
 	}
-	
+
 	m.models[name] = newEmb
 	return newEmb, nil
 }
+
 
 func NewCustomEmbedderWithFile(modelPath, onnxPath string, dim int, intraThreads, interThreads int) (*CustomEmbedder, error) {
 	// 1. Load Tokenizer

@@ -66,13 +66,16 @@ type Details struct {
 }
 
 type ConfigModel struct {
-	Name        string `yaml:"name"`
-	SourceRepo  string `yaml:"source_repo"` // Optional: HuggingFace repo
-	ModelFile   string `yaml:"model_file"`  // Optional: Specific ONNX file
-	Pooling     string `yaml:"pooling"`     // Optional: "mean" or "cls"
-	Dim         int    `yaml:"dim"`
-	Description string `yaml:"description"`
-	Enabled     *bool  `yaml:"enabled"`
+	Name           string   `yaml:"name"`
+	Aliases        []string `yaml:"aliases"`         // Optional: Alternative names
+	SourceRepo     string   `yaml:"source_repo"`     // Optional: HuggingFace repo
+	ModelFile      string   `yaml:"model_file"`      // Optional: Specific ONNX file
+	Pooling        string   `yaml:"pooling"`         // Optional: "mean" or "cls"
+	QueryPrefix    string   `yaml:"query_prefix"`    // Optional: e.g. "query: " or "search_query: "
+	DocumentPrefix string   `yaml:"document_prefix"` // Optional: e.g. "passage: "
+	Dim            int      `yaml:"dim"`
+	Description    string   `yaml:"description"`
+	Enabled        *bool    `yaml:"enabled"`
 }
 
 type Handler struct {
@@ -83,47 +86,67 @@ type Handler struct {
 	concurrency  chan struct{}
 }
 
+// resolveModel looks up the actual model name if an alias was provided
+func (h *Handler) resolveModel(requestedModel string) string {
+	for _, m := range h.configModels {
+		if m.Name == requestedModel {
+			return m.Name
+		}
+		for _, alias := range m.Aliases {
+			if alias == requestedModel {
+				return m.Name
+			}
+		}
+	}
+	return ""
+}
+
 // HandleEmbedFaker returns dummy embeddings for testing
 func (h *Handler) HandleEmbedFaker(c *gin.Context) {
-       var req EmbedRequest
-       if err := c.ShouldBindJSON(&req); err != nil {
-	       c.JSON(400, gin.H{"error": err.Error()})
-	       return
-       }
+	var req EmbedRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
 
-       // Accept string or array of strings
-       var inputs []string
-       switch v := req.Input.(type) {
-       case string:
-	       inputs = []string{v}
-       case []interface{}:
-	       for _, item := range v {
-		       if s, ok := item.(string); ok {
-			       inputs = append(inputs, s)
-		       }
-	       }
-       case []string:
-	       inputs = v
-       default:
-	       c.JSON(400, gin.H{"error": "input must be string or array of strings"})
-	       return
-       }
+	modelName := h.resolveModel(req.Model)
+	if modelName == "" {
+		modelName = req.Model // Fallback for faker
+	}
 
-       // Generate fake embeddings (e.g. all zeros, dim=8)
-       dim := 8
-       if len(h.configModels) > 0 {
-	       dim = h.configModels[0].Dim
-       }
-       fake := make([][]float32, len(inputs))
-       for i := range fake {
-	       fake[i] = make([]float32, dim)
-       }
+	// Accept string or array of strings
+	var inputs []string
+	switch v := req.Input.(type) {
+	case string:
+		inputs = []string{v}
+	case []interface{}:
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				inputs = append(inputs, s)
+			}
+		}
+	case []string:
+		inputs = v
+	default:
+		c.JSON(400, gin.H{"error": "input must be string or array of strings"})
+		return
+	}
 
-       resp := EmbedResponse{
-	       Model: req.Model,
-	       Embeddings: fake,
-       }
-       c.JSON(200, resp)
+	// Generate fake embeddings (e.g. all zeros, dim=8)
+	dim := 8
+	if len(h.configModels) > 0 {
+		dim = h.configModels[0].Dim
+	}
+	fake := make([][]float32, len(inputs))
+	for i := range fake {
+		fake[i] = make([]float32, dim)
+	}
+
+	resp := EmbedResponse{
+		Model:      req.Model, // Return the requested name (following Ollama behavior)
+		Embeddings: fake,
+	}
+	c.JSON(200, resp)
 }
 
 func NewHandler(manager *embedding.Manager, models []ConfigModel, defaultModel string, maxConcurrency int) *Handler {
@@ -146,15 +169,9 @@ func (h *Handler) HandleEmbed(c *gin.Context) {
 		return
 	}
 
-	// Check if model is available and enabled
-	found := false
-	for _, m := range h.configModels {
-		if m.Name == req.Model {
-			found = true
-			break
-		}
-	}
-	if !found {
+	// Resolve Model Name/Alias
+	actualModelName := h.resolveModel(req.Model)
+	if actualModelName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "model not found or disabled"})
 		return
 	}
@@ -176,22 +193,22 @@ func (h *Handler) HandleEmbed(c *gin.Context) {
 		return
 	}
 
-	// Apply concurrency l2imit
+	// Apply concurrency limit
 	h.concurrency <- struct{}{}
 	defer func() { <-h.concurrency }()
 
 	start := time.Now()
-	embeddings, err := h.manager.Embed(req.Model, inputs)
+	embeddings, err := h.manager.Embed(actualModelName, inputs)
 	duration := time.Since(start)
 
 	if err != nil {
-		slog.Error("Embedding failed", "model", req.Model, "error", err)
+		slog.Error("Embedding failed", "model", actualModelName, "error", err)
 
 		errMsg := err.Error()
 		// Return 400 for user errors
 		if strings.Contains(errMsg, "token limit") ||
-		   strings.Contains(errMsg, "empty document") ||
-		   strings.Contains(errMsg, "no documents") {
+			strings.Contains(errMsg, "empty document") ||
+			strings.Contains(errMsg, "no documents") {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
 			return
 		}
@@ -200,16 +217,17 @@ func (h *Handler) HandleEmbed(c *gin.Context) {
 		return
 	}
 
-	h.stats.RecordRequest(req.Model, duration)
+	h.stats.RecordRequest(actualModelName, duration)
 
 	slog.Info("Embedding request",
-		"model", req.Model,
+		"model", actualModelName,
+		"requested_as", req.Model,
 		"inputs_count", len(inputs),
 		"duration_ms", duration.Milliseconds(),
 	)
 
 	c.JSON(http.StatusOK, EmbedResponse{
-		Model:      req.Model,
+		Model:      req.Model, // Ollama returns the name that was used in request
 		Embeddings: embeddings,
 	})
 }
@@ -230,6 +248,9 @@ func (h *Handler) HandleTags(c *gin.Context) {
 				QuantizationLevel: "f32",
 			},
 		})
+		// Also list aliases in tags? Ollama usually only lists the primary names,
+		// but for a drop-in replacement, we might want to list them or keep it clean.
+		// Let's stick to primary names for now to avoid cluttering the list.
 	}
 
 	c.JSON(http.StatusOK, TagResponse{
@@ -244,24 +265,53 @@ func (h *Handler) HandleSimilarity(c *gin.Context) {
 		return
 	}
 
+	// Resolve Model Name/Alias and get config
+	actualModelName := h.resolveModel(req.Model)
+	if actualModelName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "model not found or disabled"})
+		return
+	}
+
+	var modelCfg *ConfigModel
+	for i := range h.configModels {
+		if h.configModels[i].Name == actualModelName {
+			modelCfg = &h.configModels[i]
+			break
+		}
+	}
+
+	// Apply prefixes if configured
+	query := req.Query
+	if modelCfg != nil && modelCfg.QueryPrefix != "" {
+		query = modelCfg.QueryPrefix + query
+	}
+
+	docs := make([]string, len(req.Documents))
+	copy(docs, req.Documents)
+	if modelCfg != nil && modelCfg.DocumentPrefix != "" {
+		for i := range docs {
+			docs[i] = modelCfg.DocumentPrefix + docs[i]
+		}
+	}
+
 	// Apply concurrency limit
 	h.concurrency <- struct{}{}
 	defer func() { <-h.concurrency }()
 
 	start := time.Now()
 	// 1. Get embeddings for all texts (Query + Documents)
-	allTexts := append([]string{req.Query}, req.Documents...)
-	embeddings, err := h.manager.Embed(req.Model, allTexts)
+	allTexts := append([]string{query}, docs...)
+	embeddings, err := h.manager.Embed(actualModelName, allTexts)
 	duration := time.Since(start)
 
 	if err != nil {
-		slog.Error("Similarity failed", "model", req.Model, "error", err)
+		slog.Error("Similarity failed", "model", actualModelName, "error", err)
 
 		errMsg := err.Error()
 		// Return 400 for user errors
 		if strings.Contains(errMsg, "token limit") ||
-		   strings.Contains(errMsg, "empty document") ||
-		   strings.Contains(errMsg, "no documents") {
+			strings.Contains(errMsg, "empty document") ||
+			strings.Contains(errMsg, "no documents") {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
 			return
 		}
@@ -270,7 +320,7 @@ func (h *Handler) HandleSimilarity(c *gin.Context) {
 		return
 	}
 
-	h.stats.RecordRequest(req.Model, duration)
+	h.stats.RecordRequest(actualModelName, duration)
 
 	queryEmb := embeddings[0]
 	docEmbeddings := embeddings[1:]
@@ -283,7 +333,7 @@ func (h *Handler) HandleSimilarity(c *gin.Context) {
 			score += queryEmb[j] * docEmb[j]
 		}
 		results = append(results, SimilarityResult{
-			Document: req.Documents[i],
+			Document: req.Documents[i], // Return original document text
 			Score:    score,
 		})
 	}

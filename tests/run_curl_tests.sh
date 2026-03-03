@@ -1,4 +1,5 @@
 #!/bin/bash
+# mlc 3/2026
 
 # Configuration
 BASE_URL=${MLC_BASE_URL:-"http://localhost:9142"}
@@ -82,8 +83,8 @@ echo -n "6. Similarity API: "
 sim_resp=$(curl -s -X POST "$BASE_URL/api/test/similarity" \
     -H "Content-Type: application/json" \
     -d "{
-        \"model\": \"$MODEL\", 
-        \"query\": \"Which city is the capital of France?\", 
+        \"model\": \"$MODEL\",
+        \"query\": \"Which city is the capital of France?\",
         \"documents\": [\"Paris is the capital.\", \"Berlin is in Germany.\", \"Die Sonne ist ein Stern.\"]
     }")
 if [[ $sim_resp == *"scores"* ]]; then
@@ -133,17 +134,18 @@ echo -n "   - Empty input: "
 empty_resp=$(curl -s -X POST "$BASE_URL/api/embed" -H "Content-Type: application/json" -d "{\"model\": \"$MODEL\", \"input\": \"\"}")
 if [[ $empty_resp == *"empty"* ]]; then echo "OK"; else echo "FAILED ($empty_resp)"; fi
 
-echo -n "   - Very long input (Token limit): "
-# Create a string that is definitely longer than 512 tokens (approx 2000 chars)
-LONG_TEXT=$(printf 'word %.0s' {1..1000})
-limit_resp=$(curl -s -X POST "$BASE_URL/api/embed" -H "Content-Type: application/json" -d "{\"model\": \"$MODEL\", \"input\": \"$LONG_TEXT\"}")
-if [[ $limit_resp == *"token limit"* ]]; then
-    echo "OK (Correctly detected limit)"
-else
-    echo "FAILED (Expected token limit error)"
-    echo "Response: $limit_resp"
-fi
-
+## ollama does truncate ,, so ..
+# echo -n "   - Very long input (Token limit): "
+# # Create a string that is definitely longer than 512 tokens (approx 2000 chars)
+# LONG_TEXT=$(printf 'word %.0s' {1..1000})
+# limit_resp=$(curl -s -X POST "$BASE_URL/api/embed" -H "Content-Type: application/json" -d "{\"model\": \"$MODEL\", \"input\": \"$LONG_TEXT\"}")
+# if [[ $limit_resp == *"token limit"* ]]; then
+#     echo "OK (Correctly detected limit)"
+# else
+#     echo "FAILED (Expected token limit error)"
+#     echo "Response: $limit_resp"
+# fi
+echo "   - Very long input: SKIPPED (Automatic truncation enabled to match Ollama behavior)"
 # 10. Parallel Request Test (Multi-user simulation)
 echo "10. Parallel Request Test (Simulating 5 concurrent users):"
 for i in {1..5}; do

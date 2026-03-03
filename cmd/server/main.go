@@ -105,11 +105,14 @@ func main() {
 	for _, m := range config.Models.Available {
 		if m.Enabled == nil || *m.Enabled {
 			availableModels = append(availableModels, m)
-			if m.ModelFile != "" {
-				manager.SetModelConfig(m.Name, m.ModelFile)
+			if m.ModelFile != "" || m.Dim != 0 {
+				manager.SetModelConfig(m.Name, m.ModelFile, m.Dim)
 			}
 			if m.Pooling != "" {
 				manager.SetPoolingConfig(m.Name, m.Pooling)
+			}
+			for _, alias := range m.Aliases {
+				manager.AddAlias(m.Name, alias)
 			}
 		}
 	}
