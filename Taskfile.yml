@@ -90,6 +90,11 @@ tasks:
         echo -e "\n--- Stats ---"
         curl -s "$URL/api/stats" | jq . || curl -s "$URL/api/stats"
 
+  compare-ollama:
+    desc: Compare embeddings with Ollama reference
+    cmds:
+      - go run tests/integration/compare_ollama.go
+
   preload:
     desc: Preload models (Go version with HF_TOKEN support)
     env:
