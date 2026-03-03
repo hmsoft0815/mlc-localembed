@@ -96,6 +96,22 @@ Ein einfaches Werkzeug, um Embeddings direkt über die Kommandozeile zu testen.
 - `GET /api/tags`: Listet verfügbare und aktivierte Modelle auf.
 - `GET /api/health`: Einfacher Gesundheitscheck.
 
+## Tests
+
+Das Projekt umfasst sowohl Unit-Tests als auch Integrationstests.
+
+### Unit-Tests (Go)
+Führen Sie alle internen Tests aus:
+```bash
+go test -v ./...
+```
+
+### Integrationstests (Bash/Curl)
+Erfordert einen laufenden Server.
+```bash
+./tests/run_curl_tests.sh
+```
+
 ## Support & Consulting
 
 Falls Sie professionelle Unterstützung, maßgeschneiderte Modell-Integrationen oder Hilfe bei Enterprise-Deployments benötigen, können Sie mich gerne kontaktieren. Ich biete Beratung für:

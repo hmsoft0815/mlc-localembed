@@ -99,6 +99,22 @@ A simple tool to test embeddings directly from the command line.
 - `GET /api/tags`: List available and enabled models.
 - `GET /api/health`: Basic health check.
 
+## Testing
+
+The project includes both unit tests and integration tests.
+
+### Unit Tests (Go)
+Run all internal tests:
+```bash
+go test -v ./...
+```
+
+### Integration Tests (Bash/Curl)
+Requires a running server.
+```bash
+./tests/run_curl_tests.sh
+```
+
 ## Support & Consulting
 
 If you need professional support, custom model integrations, or enterprise-grade deployment assistance, feel free to reach out. I offer consulting services for:
