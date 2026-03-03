@@ -18,8 +18,20 @@ type EmbedRequest struct {
 }
 
 func main() {
-	text := "query: wie ist das wetter heute in berlin?"
-	model := "multilingual-e5-small"
+	text := os.Getenv("TEST_TEXT")
+	if text == "" {
+		text = "query: wie ist das wetter heute in berlin?"
+	}
+
+	modelCustom := os.Getenv("MLC_MODEL")
+	if modelCustom == "" {
+		modelCustom = "multilingual-e5-small"
+	}
+
+	modelOllama := os.Getenv("OLLAMA_MODEL")
+	if modelOllama == "" {
+		modelOllama = "multilingual-e5-small" // Often the same, but can be overridden
+	}
 
 	// Defaults to our project's port 9142
 	customURL := os.Getenv("MLC_BASE_URL")
@@ -35,20 +47,21 @@ func main() {
 	ollamaURL += "/api/embed"
 
 	fmt.Printf("Vergleiche Vektoren für: \"%s\"\n", text)
-	fmt.Printf("Modell: %s\n\n", model)
+	fmt.Printf("Local Model:  %s\n", modelCustom)
+	fmt.Printf("Ollama Model: %s\n\n", modelOllama)
 
 	// 1. Vektor von unserem Service holen
-	vecCustom, err := fetchVector(customURL, model, text, true) // Our service also uses Ollama format ([])
+	vecCustom, err := fetchVector(customURL, modelCustom, text, true)
 	if err != nil {
 		fmt.Printf("❌ Fehler Custom Service (%s): %v\n", customURL, err)
 		os.Exit(1)
 	}
 
 	// 2. Vektor von Ollama holen
-	vecOllama, err := fetchVector(ollamaURL, model, text, true)
+	vecOllama, err := fetchVector(ollamaURL, modelOllama, text, true)
 	if err != nil {
 		fmt.Printf("❌ Fehler Ollama (%s): %v\n", ollamaURL, err)
-		fmt.Println("Hinweis: Läuft Ollama? Ist das Modell geladen? (ollama run multilingual-e5-small)")
+		fmt.Printf("Hinweis: Läuft Ollama? Ist das Modell geladen? (ollama run %s)\n", modelOllama)
 		os.Exit(1)
 	}
 
