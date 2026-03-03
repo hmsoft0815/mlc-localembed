@@ -1,6 +1,8 @@
 # Binaries (anchored to root)
 /bin/
 libonnxruntime.so
+server.pid
+server.log
 
 # Model Cache
 /mlcembed/

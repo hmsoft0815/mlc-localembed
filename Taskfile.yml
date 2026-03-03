@@ -3,6 +3,10 @@ version: '3'
 dotenv: ['.env']
 
 tasks:
+  default:
+    cmds:
+      - task: build
+
   build:
     desc: Build all binaries
     env:
@@ -22,12 +26,55 @@ tasks:
       - go test ./...
 
   run:
-    desc: Run the server
+    desc: Run the server (foreground)
     env:
       ONNX_PATH: "{{.TASKFILE_DIR}}/libonnxruntime.so"
       GOWORK: "off"
     cmds:
       - ./bin/server
+
+  start:
+    desc: Start the server in background (using PID file)
+    env:
+      ONNX_PATH: "{{.TASKFILE_DIR}}/libonnxruntime.so"
+      GOWORK: "off"
+    cmds:
+      - |
+        if [ -f server.pid ]; then
+          PID=$(cat server.pid)
+          if kill -0 $PID 2>/dev/null; then
+            echo "Server already running (PID $PID)"
+            exit 1
+          fi
+          rm server.pid
+        fi
+        nohup ./bin/server > server.log 2>&1 &
+        sleep 1
+        pgrep -f bin/server | head -n 1 > server.pid
+        if [ -s server.pid ]; then
+          echo "Server started (PID $(cat server.pid), log: server.log)"
+        else
+          echo "Failed to start server"
+          rm server.pid
+          exit 1
+        fi
+
+  stop:
+    desc: Stop the server (using PID file)
+    cmds:
+      - |
+        if [ -f server.pid ]; then
+          PID=$(cat server.pid)
+          if kill $PID 2>/dev/null; then
+             rm server.pid
+             echo "Server (PID $PID) stopped"
+          else
+             echo "Process $PID not found, cleaning up PID file"
+             rm server.pid
+          fi
+        else
+          pkill -f bin/server && echo "Server stopped (via pkill)" || echo "Server not running"
+        fi
 
   preload:
     desc: Preload models (Go version with HF_TOKEN support)

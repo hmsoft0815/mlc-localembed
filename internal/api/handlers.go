@@ -173,7 +173,7 @@ func (h *Handler) HandleEmbed(c *gin.Context) {
 		return
 	}
 
-	// Apply concurrency limit
+	// Apply concurrency l2imit
 	h.concurrency <- struct{}{}
 	defer func() { <-h.concurrency }()
 
