@@ -69,11 +69,10 @@ jobs:
           cp LICENSE README.md config.yaml release/
           cp ${{ matrix.onnx_lib }} release/
           
-          # Add README note about models
-          echo -e "
-
-## Important Note
-Models are not included in this release. Use the './preloader' tool to download them." >> release/README.md
+          # Add README note about models using a simpler append
+          echo "" >> release/README.md
+          echo "## Important Note" >> release/README.md
+          echo "Models are not included in this release. Use the './preloader' tool to download them." >> release/README.md
           
           cd release
           tar -czf ../mlc-localembed-${{ matrix.target }}.tar.gz *
