@@ -118,24 +118,34 @@ func (e *CustomEmbedder) Embed(docs []string) ([][]float32, error) {
 			return nil, fmt.Errorf("ONNX execution failed for document %d: %w", idx, err)
 		}
 
-		// Mean Pooling
+		// Masked Mean Pooling
 		embedding := make([]float32, e.dim)
-		count := float32(tokenCount)
-		if count == 0 {
+		var activeTokens float32 = 0
+
+		for i := 0; i < tokenCount; i++ {
+			// Only process tokens that the model actually "attended" to
+			if e.attentionMask[i] == 1 {
+				activeTokens++
+				offset := i * e.dim
+				for j := 0; j < e.dim; j++ {
+					embedding[j] += e.outputData[offset+j]
+				}
+			}
+		}
+
+		if activeTokens == 0 {
 			results[idx] = embedding // All zeros
 			continue
 		}
 
-		for i := 0; i < tokenCount; i++ {
-			for j := 0; j < e.dim; j++ {
-				embedding[j] += e.outputData[i*e.dim+j]
-			}
+		// 1. Average (Mean Pooling)
+		for j := 0; j < e.dim; j++ {
+			embedding[j] /= activeTokens
 		}
 
-		// Normalize
+		// 2. L2 Normalize
 		norm := float32(0.0)
 		for j := 0; j < e.dim; j++ {
-			embedding[j] /= count
 			norm += embedding[j] * embedding[j]
 		}
 		norm = float32(math.Sqrt(float64(norm)))
@@ -224,16 +234,34 @@ func (m *Manager) GetEmbedder(name string) (Embedder, error) {
 	// Map name to folder (matching preloader logic)
 	// We check for both our custom naming and the default naming
 	var path string
+	
+	// List of possible folder names for this model
+	var possibleFolders []string
+	
 	if name == "multilingual-e5-small" {
-		path = filepath.Join(m.cacheDir, "fast-multilingual-e5-small")
+		possibleFolders = append(possibleFolders, "fast-multilingual-e5-small", "models--qdrant--multilingual-e5-small")
 	} else if name == "BAAI/bge-small-en-v1.5" {
-		path = filepath.Join(m.cacheDir, "fast-bge-small-en-v1.5")
-	} else {
-		folderName := "models--" + strings.ReplaceAll(name, "/", "--")
-		if !strings.Contains(name, "/") {
-			folderName = "models--qdrant--" + name
+		possibleFolders = append(possibleFolders, "fast-bge-small-en-v1.5", "models--BAAI--bge-small-en-v1.5")
+	}
+	
+	// Default folder name logic
+	folderName := "models--" + strings.ReplaceAll(name, "/", "--")
+	if !strings.Contains(name, "/") {
+		folderName = "models--qdrant--" + name
+	}
+	possibleFolders = append(possibleFolders, folderName)
+
+	// Find the first existing folder
+	for _, f := range possibleFolders {
+		testPath := filepath.Join(m.cacheDir, f)
+		if _, err := os.Stat(testPath); err == nil {
+			path = testPath
+			break
 		}
-		path = filepath.Join(m.cacheDir, folderName)
+	}
+
+	if path == "" {
+		return nil, fmt.Errorf("model folder not found for %s in %s (tried %v)", name, m.cacheDir, possibleFolders)
 	}
 
 	// Determine dimension
