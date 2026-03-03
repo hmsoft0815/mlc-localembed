@@ -50,6 +50,11 @@ jobs:
             ln -sf ${{ matrix.onnx_lib }} libonnxruntime.dylib
           fi
 
+      - name: Debug - List Files
+        run: |
+          pwd
+          ls -R
+
       - name: Build Server
         run: |
           CGO_ENABLED=1 go build -v -o server${{ matrix.binary_ext }} ./cmd/server/main.go
