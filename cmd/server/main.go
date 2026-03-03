@@ -100,13 +100,16 @@ func main() {
 	manager := embedding.NewManager(config.Storage.CacheDir)
 	manager.SetOnnxOptions(config.Onnx.IntraOpNumThreads, config.Onnx.InterOpNumThreads)
 
-	// Filter available models based on config and apply custom files
+	// Filter available models based on config and apply custom settings
 	var availableModels []api.ConfigModel
 	for _, m := range config.Models.Available {
 		if m.Enabled == nil || *m.Enabled {
 			availableModels = append(availableModels, m)
 			if m.ModelFile != "" {
 				manager.SetModelConfig(m.Name, m.ModelFile)
+			}
+			if m.Pooling != "" {
+				manager.SetPoolingConfig(m.Name, m.Pooling)
 			}
 		}
 	}

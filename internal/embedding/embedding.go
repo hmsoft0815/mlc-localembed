@@ -57,6 +57,7 @@ func findOnnxRuntime() string {
 type Embedder interface {
 	Embed(documents []string) ([][]float32, error)
 	Close() error
+	SetPooling(pooling string)
 }
 
 // CustomEmbedder implements manual ONNX execution for models
@@ -65,6 +66,7 @@ type CustomEmbedder struct {
 	session   *ort.AdvancedSession
 	dim       int
 	maxLen    int
+	pooling   string // "mean" or "cls"
 
 	// Buffers for input/output to avoid allocations
 	inputIds      []int64
@@ -74,6 +76,10 @@ type CustomEmbedder struct {
 
 	tensors []ort.ArbitraryTensor
 	mu      sync.Mutex
+}
+
+func (e *CustomEmbedder) SetPooling(pooling string) {
+	e.pooling = pooling
 }
 
 func (e *CustomEmbedder) Embed(docs []string) ([][]float32, error) {
@@ -118,37 +124,41 @@ func (e *CustomEmbedder) Embed(docs []string) ([][]float32, error) {
 			return nil, fmt.Errorf("ONNX execution failed for document %d: %w", idx, err)
 		}
 
-		// Masked Mean Pooling
 		embedding := make([]float32, e.dim)
-		var activeTokens float32 = 0
 
-		for i := 0; i < tokenCount; i++ {
-			// Only process tokens that the model actually "attended" to
-			if e.attentionMask[i] == 1 {
-				activeTokens++
-				offset := i * e.dim
+		if e.pooling == "cls" {
+			// [CLS] Pooling: Take the first token vector
+			copy(embedding, e.outputData[0:e.dim])
+		} else {
+			// Masked Mean Pooling
+			var activeTokens float32 = 0
+			// Strictly iterate over ALL tokens up to maxLen and filter by mask
+			// This ensures we divide by the correct denominator and only sum seen tokens.
+			for i := 0; i < e.maxLen; i++ {
+				if e.attentionMask[i] == 1 {
+					activeTokens++
+					offset := i * e.dim
+					for j := 0; j < e.dim; j++ {
+						embedding[j] += e.outputData[offset+j]
+					}
+				}
+			}
+
+			if activeTokens > 0 {
+				// 1. Average (Mean)
 				for j := 0; j < e.dim; j++ {
-					embedding[j] += e.outputData[offset+j]
+					embedding[j] /= activeTokens
 				}
 			}
 		}
 
-		if activeTokens == 0 {
-			results[idx] = embedding // All zeros
-			continue
-		}
-
-		// 1. Average (Mean Pooling)
-		for j := 0; j < e.dim; j++ {
-			embedding[j] /= activeTokens
-		}
-
 		// 2. L2 Normalize
-		norm := float32(0.0)
+		var normSum float64 = 0
 		for j := 0; j < e.dim; j++ {
-			norm += embedding[j] * embedding[j]
+			normSum += float64(embedding[j]) * float64(embedding[j])
 		}
-		norm = float32(math.Sqrt(float64(norm)))
+		norm := float32(math.Sqrt(normSum))
+		
 		if norm > 0 {
 			for j := 0; j < e.dim; j++ {
 				embedding[j] /= norm
@@ -180,6 +190,7 @@ type Manager struct {
 	onnxIntraThreads int
 	onnxInterThreads int
 	configModels     map[string]string // model name -> custom filename
+	poolingConfigs   map[string]string // model name -> pooling strategy
 }
 
 func NewManager(cacheDir string) *Manager {
@@ -195,9 +206,10 @@ func NewManager(cacheDir string) *Manager {
 	}
 
 	return &Manager{
-		cacheDir:     cacheDir,
-		models:       make(map[string]Embedder),
-		configModels: make(map[string]string),
+		cacheDir:       cacheDir,
+		models:         make(map[string]Embedder),
+		configModels:   make(map[string]string),
+		poolingConfigs: make(map[string]string),
 	}
 }
 
@@ -205,6 +217,12 @@ func (m *Manager) SetModelConfig(name, filename string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.configModels[name] = filename
+}
+
+func (m *Manager) SetPoolingConfig(name, pooling string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.poolingConfigs[name] = pooling
 }
 
 func (m *Manager) SetOnnxOptions(intra, inter int) {
@@ -220,6 +238,7 @@ func (m *Manager) GetEmbedder(name string) (Embedder, error) {
 	intra := m.onnxIntraThreads
 	inter := m.onnxInterThreads
 	customFile := m.configModels[name]
+	pooling := m.poolingConfigs[name]
 	m.mu.RUnlock()
 	if ok {
 		return emb, nil
@@ -231,11 +250,8 @@ func (m *Manager) GetEmbedder(name string) (Embedder, error) {
 		return emb, nil
 	}
 
-	// Map name to folder (matching preloader logic)
-	// We check for both our custom naming and the default naming
+	// Map name to folder
 	var path string
-	
-	// List of possible folder names for this model
 	var possibleFolders []string
 	
 	if name == "multilingual-e5-small" {
@@ -244,14 +260,12 @@ func (m *Manager) GetEmbedder(name string) (Embedder, error) {
 		possibleFolders = append(possibleFolders, "fast-bge-small-en-v1.5", "models--BAAI--bge-small-en-v1.5")
 	}
 	
-	// Default folder name logic
 	folderName := "models--" + strings.ReplaceAll(name, "/", "--")
 	if !strings.Contains(name, "/") {
 		folderName = "models--qdrant--" + name
 	}
 	possibleFolders = append(possibleFolders, folderName)
 
-	// Find the first existing folder
 	for _, f := range possibleFolders {
 		testPath := filepath.Join(m.cacheDir, f)
 		if _, err := os.Stat(testPath); err == nil {
@@ -264,23 +278,23 @@ func (m *Manager) GetEmbedder(name string) (Embedder, error) {
 		return nil, fmt.Errorf("model folder not found for %s in %s (tried %v)", name, m.cacheDir, possibleFolders)
 	}
 
-	// Determine dimension
 	dim := 384
-
-	// Handle custom filename
 	onnxFile := "model.onnx"
 	if customFile != "" {
 		onnxFile = customFile
 	}
 
-	// If the custom filename contains path segments (like "onnx/model.onnx"),
-	// and we are just looking for the file in 'path', we need to join them.
 	fullOnnxPath := filepath.Join(path, onnxFile)
 
 	newEmb, err := NewCustomEmbedderWithFile(path, fullOnnxPath, dim, intra, inter)
 	if err != nil {
 		return nil, err
 	}
+	
+	if pooling != "" {
+		newEmb.SetPooling(pooling)
+	}
+	
 	m.models[name] = newEmb
 	return newEmb, nil
 }
@@ -293,10 +307,9 @@ func NewCustomEmbedderWithFile(modelPath, onnxPath string, dim int, intraThreads
 	}
 
 	maxLen := 512
-	// We disable auto-truncation to detect when input is too long
 	tk.WithTruncation(nil)
 
-	// 2. Initialize ONNX Environment if needed
+	// 2. Initialize ONNX Environment
 	if !ort.IsInitialized() {
 		rtPath := findOnnxRuntime()
 		if rtPath != "" {
@@ -354,6 +367,7 @@ func NewCustomEmbedderWithFile(modelPath, onnxPath string, dim int, intraThreads
 		session:       session,
 		dim:           dim,
 		maxLen:        maxLen,
+		pooling:       "mean", // Default
 		inputIds:      inputIds,
 		attentionMask: attentionMask,
 		tokenTypeIds:  tokenTypeIds,

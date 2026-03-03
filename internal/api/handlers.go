@@ -69,6 +69,7 @@ type ConfigModel struct {
 	Name        string `yaml:"name"`
 	SourceRepo  string `yaml:"source_repo"` // Optional: HuggingFace repo
 	ModelFile   string `yaml:"model_file"`  // Optional: Specific ONNX file
+	Pooling     string `yaml:"pooling"`     // Optional: "mean" or "cls"
 	Dim         int    `yaml:"dim"`
 	Description string `yaml:"description"`
 	Enabled     *bool  `yaml:"enabled"`

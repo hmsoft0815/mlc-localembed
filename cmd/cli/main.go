@@ -56,10 +56,13 @@ func main() {
 	manager := embedding.NewManager(config.Storage.CacheDir)
 	defer manager.Close()
 
-	// Configure custom model files
+	// Configure custom model settings
 	for _, m := range config.Models.Available {
 		if m.ModelFile != "" {
 			manager.SetModelConfig(m.Name, m.ModelFile)
+		}
+		if m.Pooling != "" {
+			manager.SetPoolingConfig(m.Name, m.Pooling)
 		}
 	}
 

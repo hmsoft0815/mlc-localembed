@@ -27,3 +27,10 @@ models:
       dim: 384
       description: "Xenova optimized English embedding"
       enabled: true
+    - name: "all-minilm"
+      source_repo: "Xenova/all-MiniLM-L6-v2"
+      model_file: "model.onnx"
+      pooling: "mean"
+      dim: 384
+      description: "Standard symmetric embedding for comparison"
+      enabled: true

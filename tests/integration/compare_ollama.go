@@ -71,6 +71,9 @@ func main() {
 		return
 	}
 
+	fmt.Printf("Custom Vector (first 5): %v\n", vecCustom[:5])
+	fmt.Printf("Ollama Vector (first 5): %v\n\n", vecOllama[:5])
+
 	similarity := cosineSimilarity(vecCustom, vecOllama)
 
 	fmt.Printf("Dimensionen: %d\n", len(vecCustom))
