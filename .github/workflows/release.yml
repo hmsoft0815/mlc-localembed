@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-amd64
+            onnx_url: "https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-linux-x64-1.17.0.tgz"
+            onnx_lib: "libonnxruntime.so.1.17.0"
+            binary_ext: ""
+          - os: macos-latest
+            target: darwin-arm64
+            onnx_url: "https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-osx-arm64-1.17.0.tgz"
+            onnx_lib: "libonnxruntime.1.17.0.dylib"
+            binary_ext: ""
+          - os: macos-13
+            target: darwin-amd64
+            onnx_url: "https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-osx-x86_64-1.17.0.tgz"
+            onnx_lib: "libonnxruntime.1.17.0.dylib"
+            binary_ext: ""
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+
+      - name: Download ONNX Runtime
+        run: |
+          curl -L ${{ matrix.onnx_url }} -o onnxruntime.tgz
+          tar -xzf onnxruntime.tgz
+          # Move library to root for building and packaging
+          find . -name "${{ matrix.onnx_lib }}" -exec cp {} . \;
+          # Create symlinks for common names
+          if [[ "${{ matrix.target }}" == linux* ]]; then
+            ln -sf ${{ matrix.onnx_lib }} libonnxruntime.so
+          else
+            ln -sf ${{ matrix.onnx_lib }} libonnxruntime.dylib
+          fi
+
+      - name: Build Server
+        run: |
+          CGO_ENABLED=1 go build -v -o server${{ matrix.binary_ext }} ./cmd/server
+
+      - name: Build Preloader
+        run: |
+          CGO_ENABLED=1 go build -v -o preloader${{ matrix.binary_ext }} ./cmd/preloader
+
+      - name: Build CLI
+        run: |
+          CGO_ENABLED=1 go build -v -o cli${{ matrix.binary_ext }} ./cmd/cli
+
+      - name: Package
+        run: |
+          mkdir -p release
+          cp server${{ matrix.binary_ext }} preloader${{ matrix.binary_ext }} cli${{ matrix.binary_ext }} release/
+          cp LICENSE README.md config.yaml release/
+          cp ${{ matrix.onnx_lib }} release/
+          
+          # Add README note about models
+          echo -e "
+
+## Important Note
+Models are not included in this release. Use the './preloader' tool to download them." >> release/README.md
+          
+          cd release
+          tar -czf ../mlc-localembed-${{ matrix.target }}.tar.gz *
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: mlc-localembed-${{ matrix.target }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
