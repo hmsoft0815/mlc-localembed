@@ -84,7 +84,7 @@ sim_resp=$(curl -s -X POST "$BASE_URL/api/test/similarity" \
     -d "{
         \"model\": \"$MODEL\", 
         \"query\": \"Which city is the capital of France?\", 
-        \"documents\": [\"Paris is the capital.\", \"Berlin is in Germany.\", \"The sun is a star.\"]
+        \"documents\": [\"Paris is the capital.\", \"Berlin is in Germany.\", \"Die Sonne ist ein Stern.\"]
     }")
 if [[ $sim_resp == *"scores"* ]]; then
     # Check if we have 3 results by counting "document" occurrences
@@ -98,6 +98,21 @@ if [[ $sim_resp == *"scores"* ]]; then
 else
     echo "FAILED"
     echo "Response: $sim_resp"
+fi
+
+# 7. Model Switching / Disabled Logic Test
+echo "7. Model Handling Test:"
+MODEL_DISABLED="BAAI/bge-small-en-v1.5"
+echo -n "   - Requesting enabled model ($MODEL): "
+curl -s -X POST "$BASE_URL/api/embed" -H "Content-Type: application/json" -d "{\"model\": \"$MODEL\", \"input\": \"test\"}" | grep -q "embeddings" && echo "OK" || echo "FAILED"
+
+echo -n "   - Requesting disabled model ($MODEL_DISABLED): "
+resp_disabled=$(curl -s -X POST "$BASE_URL/api/embed" -H "Content-Type: application/json" -d "{\"model\": \"$MODEL_DISABLED\", \"input\": \"test\"}")
+if [[ $resp_disabled == *"disabled"* ]] || [[ $resp_disabled == *"not found"* ]]; then
+    echo "OK (Correctly rejected)"
+else
+    echo "FAILED (Should have been rejected as disabled)"
+    echo "Response: $resp_disabled"
 fi
 
 echo "--- Tests completed ---"
