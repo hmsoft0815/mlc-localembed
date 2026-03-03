@@ -2,7 +2,7 @@
   <img src="docs/minilogo884x484.png" width="300" alt="mlc-localembed logo">
 </p>
 
-# mlc-localembed v1.0.1
+# mlc-localembed v1.0.2
 
 [![Go Version](https://img.shields.io/github/go-mod/go-version/hmsoft0815/mlc-localembed)](https://golang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

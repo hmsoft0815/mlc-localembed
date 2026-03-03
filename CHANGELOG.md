@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.2] - 2026-03-03
+
+### Changed
+- Bumped version to ensure clean GitHub Release build and avoid tag caching issues (HTTP 500 on fetch).
+- Updated README with complete `config.yaml` example including storage and migration settings.
+
 ## [1.0.1] - 2026-03-03
 
 ### Changed
