@@ -52,15 +52,15 @@ jobs:
 
       - name: Build Server
         run: |
-          CGO_ENABLED=1 go build -v -o server${{ matrix.binary_ext }} ./cmd/server
+          CGO_ENABLED=1 go build -v -o server${{ matrix.binary_ext }} ./cmd/server/main.go
 
       - name: Build Preloader
         run: |
-          CGO_ENABLED=1 go build -v -o preloader${{ matrix.binary_ext }} ./cmd/preloader
+          CGO_ENABLED=1 go build -v -o preloader${{ matrix.binary_ext }} ./cmd/preloader/main.go
 
       - name: Build CLI
         run: |
-          CGO_ENABLED=1 go build -v -o cli${{ matrix.binary_ext }} ./cmd/cli
+          CGO_ENABLED=1 go build -v -o cli${{ matrix.binary_ext }} ./cmd/cli/main.go
 
       - name: Package
         run: |
