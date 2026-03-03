@@ -2,6 +2,19 @@ version: '3'
 
 dotenv: ['.env']
 
+vars:
+  # Detect OS and set library extension
+  LIB_EXT:
+    sh: |
+      if [ "$(uname)" == "Darwin" ]; then
+        echo "dylib"
+      elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
+        echo "so"
+      else
+        echo "dll"
+      fi
+  ONNX_LIB: "libonnxruntime.{{.LIB_EXT}}"
+
 tasks:
   default:
     cmds:
@@ -20,7 +33,7 @@ tasks:
   test:
     desc: Run tests
     env:
-      ONNX_PATH: "{{.TASKFILE_DIR}}/libonnxruntime.so"
+      ONNX_PATH: "{{.TASKFILE_DIR}}/{{.ONNX_LIB}}"
       GOWORK: "off"
     cmds:
       - go test ./...
@@ -28,7 +41,7 @@ tasks:
   run:
     desc: Run the server (foreground)
     env:
-      ONNX_PATH: "{{.TASKFILE_DIR}}/libonnxruntime.so"
+      ONNX_PATH: "{{.TASKFILE_DIR}}/{{.ONNX_LIB}}"
       GOWORK: "off"
     cmds:
       - ./bin/server
@@ -36,7 +49,7 @@ tasks:
   start:
     desc: Start the server in background (using PID file)
     env:
-      ONNX_PATH: "{{.TASKFILE_DIR}}/libonnxruntime.so"
+      ONNX_PATH: "{{.TASKFILE_DIR}}/{{.ONNX_LIB}}"
       GOWORK: "off"
     cmds:
       - |
@@ -95,34 +108,43 @@ tasks:
     cmds:
       - go run tests/integration/compare_ollama.go
 
+  download-onnx:
+    desc: Download ONNX runtime library for the current platform
+    cmds:
+      - |
+        OS=$(uname | tr '[:upper:]' '[:lower:]')
+        ARCH=$(uname -m)
+        if [ "$OS" == "darwin" ]; then
+          if [ "$ARCH" == "arm64" ]; then
+            URL="https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-osx-arm64-1.17.0.tgz"
+            LIB="libonnxruntime.1.17.0.dylib"
+          else
+            URL="https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-osx-x86_64-1.17.0.tgz"
+            LIB="libonnxruntime.1.17.0.dylib"
+          fi
+          curl -L $URL -o onnx.tgz
+          tar -xzf onnx.tgz --strip-components 1
+          cp lib/$LIB ./libonnxruntime.dylib
+        elif [ "$OS" == "linux" ]; then
+          URL="https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-linux-x64-1.17.0.tgz"
+          curl -L $URL -o onnx.tgz
+          tar -xzf onnx.tgz --strip-components 1
+          cp lib/libonnxruntime.so.1.17.0 ./libonnxruntime.so
+        fi
+        rm -rf onnx.tgz include lib LICENSE GIT_COMMIT_ID VERSION_NUMBER bin
+
   preload:
     desc: Preload models (Go version with HF_TOKEN support)
     env:
-      ONNX_PATH: "{{.TASKFILE_DIR}}/libonnxruntime.so"
+      ONNX_PATH: "{{.TASKFILE_DIR}}/{{.ONNX_LIB}}"
       GOWORK: "off"
     cmds:
       - ./bin/preloader
 
-  preload-docker:
-    desc: Preload models using Python in Docker
-    cmds:
-      - |
-        if [ -z "$HF_TOKEN" ]; then
-          echo "HF_TOKEN nicht in .env oder Umgebung gefunden."
-          read -p "Hugging Face Token eingeben (oder ENTER für anonym): " token
-          export HF_TOKEN=$token
-        fi
-        docker run --rm -it \
-          -v "$(pwd):/app" \
-          -w /app \
-          -e HF_TOKEN=$HF_TOKEN \
-          python:3.11-slim \
-          bash -c "pip install --no-cache-dir PyYAML huggingface_hub && python scripts/download_models.py"
-
   cli:
     desc: "Run CLI test (usage: task cli -- -text 'Hello')"
     env:
-      ONNX_PATH: "{{.TASKFILE_DIR}}/libonnxruntime.so"
+      ONNX_PATH: "{{.TASKFILE_DIR}}/{{.ONNX_LIB}}"
       GOWORK: "off"
     cmds:
       - ./bin/cli {{.CLI_ARGS}}
