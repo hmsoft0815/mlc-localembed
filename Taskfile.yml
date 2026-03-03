@@ -1,0 +1,67 @@
+version: '3'
+
+dotenv: ['.env']
+
+tasks:
+  build:
+    desc: Build all binaries
+    env:
+      GOWORK: "off"
+    cmds:
+      - mkdir -p bin
+      - go build -o bin/server ./cmd/server/main.go
+      - go build -o bin/cli ./cmd/cli/main.go
+      - go build -o bin/preloader ./cmd/preloader/main.go
+
+  test:
+    desc: Run tests
+    env:
+      ONNX_PATH: "{{.TASKFILE_DIR}}/libonnxruntime.so"
+      GOWORK: "off"
+    cmds:
+      - go test ./...
+
+  run:
+    desc: Run the server
+    env:
+      ONNX_PATH: "{{.TASKFILE_DIR}}/libonnxruntime.so"
+      GOWORK: "off"
+    cmds:
+      - go run ./cmd/server/main.go
+
+  preload:
+    desc: Preload models (Go version with HF_TOKEN support)
+    env:
+      ONNX_PATH: "{{.TASKFILE_DIR}}/libonnxruntime.so"
+      GOWORK: "off"
+    cmds:
+      - go run ./cmd/preloader/main.go
+
+  preload-docker:
+    desc: Preload models using Python in Docker
+    cmds:
+      - |
+        if [ -z "$HF_TOKEN" ]; then
+          echo "HF_TOKEN nicht in .env oder Umgebung gefunden."
+          read -p "Hugging Face Token eingeben (oder ENTER für anonym): " token
+          export HF_TOKEN=$token
+        fi
+        docker run --rm -it \
+          -v "$(pwd):/app" \
+          -w /app \
+          -e HF_TOKEN=$HF_TOKEN \
+          python:3.11-slim \
+          bash -c "pip install --no-cache-dir PyYAML huggingface_hub && python scripts/download_models.py"
+
+  cli:
+    desc: "Run CLI test (usage: task cli -- -text 'Hello')"
+    env:
+      ONNX_PATH: "{{.TASKFILE_DIR}}/libonnxruntime.so"
+      GOWORK: "off"
+    cmds:
+      - go run ./cmd/cli/main.go {{.CLI_ARGS}}
+
+  clean:
+    desc: Remove binaries
+    cmds:
+      - rm -rf bin

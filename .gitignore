@@ -1,0 +1,18 @@
+# Binaries
+bin/
+server
+preloader
+cli
+libonnxruntime.so
+
+# Model Cache
+mlcembed/
+
+# Environment
+.env
+
+# Go
+vendor/
+*.exe
+*.test
+*.prof

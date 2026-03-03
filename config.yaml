@@ -1,0 +1,23 @@
+server:
+  port: 9000
+  log_level: "info"
+
+storage:
+  cache_dir: "./mlcembed"
+  allow_offline_download: true
+
+onnx:
+  intra_op_num_threads: 4
+  inter_op_num_threads: 4
+
+models:
+  default: "multilingual-e5-small"
+  available:
+    - name: "multilingual-e5-small"
+      dim: 384
+      description: "Fast multilingual embedding"
+      enabled: true
+    - name: "BAAI/bge-small-en-v1.5"
+      dim: 384
+      description: "Fast English embedding"
+      enabled: false # Disabled due to lack of Intel VNNI support if applicable
