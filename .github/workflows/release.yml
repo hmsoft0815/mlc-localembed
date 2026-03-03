@@ -25,7 +25,7 @@ jobs:
             onnx_url: "https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-osx-arm64-1.17.0.tgz"
             onnx_lib: "libonnxruntime.1.17.0.dylib"
             binary_ext: ""
-          - os: macos-13
+          - os: macos-12
             target: darwin-amd64
             onnx_url: "https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-osx-x86_64-1.17.0.tgz"
             onnx_lib: "libonnxruntime.1.17.0.dylib"
