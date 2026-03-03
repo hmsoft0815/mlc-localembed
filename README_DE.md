@@ -106,6 +106,15 @@ Falls Sie professionelle Unterstützung, maßgeschneiderte Modell-Integrationen 
 
 Für Support-Anfragen öffnen Sie bitte ein **GitHub Issue** oder kontaktieren Sie mich über mein **GitHub-Profil**.
 
+## Ähnliche Projekte & Credits
+
+Obwohl LocalEmbed nun eine unabhängige Implementierung ist, wurde es von den Ideen anderer großartiger Projekte inspiriert. Wenn Sie nach Alternativen oder den ursprünglichen Bibliotheken suchen, schauen Sie sich diese an:
+
+- [fastembed-go](https://github.com/anush008/fastembed-go) - Die ursprüngliche Go-Implementierung, die dieses Projekt inspiriert hat.
+- [fastembed](https://github.com/qdrant/fastembed) - Die hocheffiziente Python-Bibliothek von Qdrant.
+- [onnxruntime-go](https://github.com/yalue/onnxruntime_go) - Die essenziellen Go-Bindings für ONNX.
+- [tokenizer](https://github.com/sugarme/tokenizer) - Hervorragende Go-Implementierung der Hugging Face Tokenizer.
+
 ## Danksagung
 
 Dieses Projekt ist in erster Linie eine Infrastrukturschicht, die auf exzellenter Vorarbeit aufbaut. Ich bin dankbar, die folgenden Bibliotheken und Runtimes nutzen zu können:
