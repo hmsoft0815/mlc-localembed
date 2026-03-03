@@ -144,4 +144,19 @@ else
     echo "Response: $limit_resp"
 fi
 
+# 10. Parallel Request Test (Multi-user simulation)
+echo "10. Parallel Request Test (Simulating 5 concurrent users):"
+for i in {1..5}; do
+    (
+        resp=$(curl -s -X POST "$BASE_URL/api/embed" -H "Content-Type: application/json" -d "{\"model\": \"$MODEL\", \"input\": \"Parallel test request $i\"}")
+        if [[ $resp == *"embeddings"* ]]; then
+            echo "   [User $i] SUCCESS"
+        else
+            echo "   [User $i] FAILED: $resp"
+        fi
+    ) &
+done
+wait
+echo "   Parallel tests finished."
+
 echo "--- Tests completed ---"
