@@ -90,7 +90,7 @@ If you need professional support, custom model integrations, or enterprise-grade
 - **Custom Models**: Integrating and optimizing specialized ONNX embedding models.
 - **Enterprise RAG**: Architecture design and integration into your existing RAG workflows.
 
-You can contact me via **GitHub Issues** or directly at **[your-email@example.com]**.
+For support inquiries, please **open a GitHub Issue** or contact me via my **GitHub Profile**.
 
 ## Acknowledgments
 

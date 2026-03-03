@@ -87,7 +87,7 @@ Falls Sie professionelle Unterstützung, maßgeschneiderte Modell-Integrationen 
 - **Custom Models**: Integration und Optimierung spezieller ONNX-Embedding-Modelle.
 - **Enterprise RAG**: Architektur-Design und Integration in bestehende RAG-Workflows.
 
-Sie erreichen mich über **GitHub Issues** oder direkt per E-Mail unter **[ihre-email@example.com]**.
+Für Support-Anfragen öffnen Sie bitte ein **GitHub Issue** oder kontaktieren Sie mich über mein **GitHub-Profil**.
 
 ## Danksagung
 
