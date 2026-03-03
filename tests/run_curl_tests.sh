@@ -100,7 +100,7 @@ else
     echo "Response: $sim_resp"
 fi
 
-# 7. Model Switching / Disabled Logic Test
+# 7. Model Handling Test:
 echo "7. Model Handling Test:"
 MODEL_DISABLED="BAAI/bge-small-en-v1.5"
 echo -n "   - Requesting enabled model ($MODEL): "
@@ -115,4 +115,23 @@ else
     echo "Response: $resp_disabled"
 fi
 
+# 8. Error Handling Tests
+echo "8. Error Handling Tests:"
+
+echo -n "   - Empty input: "
+empty_resp=$(curl -s -X POST "$BASE_URL/api/embed" -H "Content-Type: application/json" -d "{\"model\": \"$MODEL\", \"input\": \"\"}")
+if [[ $empty_resp == *"empty"* ]]; then echo "OK"; else echo "FAILED ($empty_resp)"; fi
+
+echo -n "   - Very long input (Token limit): "
+# Create a string that is definitely longer than 512 tokens (approx 2000 chars)
+LONG_TEXT=$(printf 'word %.0s' {1..1000})
+limit_resp=$(curl -s -X POST "$BASE_URL/api/embed" -H "Content-Type: application/json" -d "{\"model\": \"$MODEL\", \"input\": \"$LONG_TEXT\"}")
+if [[ $limit_resp == *"token limit"* ]]; then
+    echo "OK (Correctly detected limit)"
+else
+    echo "FAILED (Expected token limit error)"
+    echo "Response: $limit_resp"
+fi
+
 echo "--- Tests completed ---"
+
