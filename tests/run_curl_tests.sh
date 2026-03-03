@@ -77,4 +77,27 @@ else
     echo "Response: $array_embed"
 fi
 
+# 6. Similarity API
+echo -n "6. Similarity API: "
+sim_resp=$(curl -s -X POST "$BASE_URL/api/test/similarity" \
+    -H "Content-Type: application/json" \
+    -d "{
+        \"model\": \"$MODEL\", 
+        \"query\": \"Which city is the capital of France?\", 
+        \"documents\": [\"Paris is the capital.\", \"Berlin is in Germany.\", \"The sun is a star.\"]
+    }")
+if [[ $sim_resp == *"scores"* ]]; then
+    # Check if we have 3 results by counting "document" occurrences
+    count=$(echo "$sim_resp" | grep -o "\"document\"" | wc -l)
+    if [ "$count" -eq "3" ]; then
+        echo "OK (Received 3 results)"
+    else
+        echo "FAILED (Expected 3 results, got $count)"
+        echo "Response: $sim_resp"
+    fi
+else
+    echo "FAILED"
+    echo "Response: $sim_resp"
+fi
+
 echo "--- Tests completed ---"

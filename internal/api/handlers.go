@@ -30,6 +30,24 @@ type TagResponse struct {
 	Models []ModelDetails `json:"models"`
 }
 
+// SimilarityRequest for the test API
+type SimilarityRequest struct {
+	Model     string   `json:"model" binding:"required"`
+	Query     string   `json:"query" binding:"required"`
+	Documents []string `json:"documents" binding:"required"`
+}
+
+// SimilarityResponse for the test API
+type SimilarityResponse struct {
+	Model  string             `json:"model"`
+	Scores []SimilarityResult `json:"scores"`
+}
+
+type SimilarityResult struct {
+	Document string  `json:"document"`
+	Score    float32 `json:"score"`
+}
+
 type ModelDetails struct {
 	Name       string    `json:"name"`
 	ModifiedAt time.Time `json:"modified_at"`
@@ -189,5 +207,42 @@ func (h *Handler) HandleTags(c *gin.Context) {
 
 	c.JSON(http.StatusOK, TagResponse{
 		Models: models,
+	})
+}
+
+func (h *Handler) HandleSimilarity(c *gin.Context) {
+	var req SimilarityRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 1. Get embeddings for all texts (Query + Documents)
+	allTexts := append([]string{req.Query}, req.Documents...)
+	embeddings, err := h.manager.Embed(req.Model, allTexts)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	queryEmb := embeddings[0]
+	docEmbeddings := embeddings[1:]
+
+	// 2. Calculate Dot Product (Cosine Similarity because normalized)
+	var results []SimilarityResult
+	for i, docEmb := range docEmbeddings {
+		var score float32
+		for j := range queryEmb {
+			score += queryEmb[j] * docEmb[j]
+		}
+		results = append(results, SimilarityResult{
+			Document: req.Documents[i],
+			Score:    score,
+		})
+	}
+
+	c.JSON(http.StatusOK, SimilarityResponse{
+		Model:  req.Model,
+		Scores: results,
 	})
 }

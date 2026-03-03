@@ -108,6 +108,7 @@ func main() {
 		c.JSON(200, gin.H{"status": "ok", "version": api.Version})
 	})
 	r.POST("/api/embed/faker", handler.HandleEmbedFaker)
+	r.POST("/api/test/similarity", handler.HandleSimilarity)
 
 	// 5. Start server with Graceful Shutdown support
 	srv := &http.Server{
