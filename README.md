@@ -64,22 +64,36 @@ Settings are managed via `config.yaml` or environment variables (which take prec
 ### config.yaml
 
 ```yaml
+server:
+  port: 9142
+  log_level: "info"
+
+storage:
+  cache_dir: "./mlcembed"
+  allow_offline_download: true
+
 onnx:
   intra_op_num_threads: 4 # Limit threads to prevent system freezes
   inter_op_num_threads: 4
 
+migration:
+  data_dir: "./docs"
+  embeddings_dir: "./embeddings"
+  auto_migrate: true
+
 models:
+  default: "multilingual-e5-small"
   available:
     - name: "multilingual-e5-small"
       enabled: true
     - name: "nomic-ai/nomic-embed-text-v1.5"
-      enabled: true # Excellent performance and Ollama parity
+      enabled: true
     - name: "Xenova/bge-small-en-v1.5"
-      enabled: true # Highly optimized English embeddings
+      enabled: true
     - name: "all-minilm"
-      enabled: true # Fast and lightweight
+      enabled: true
     - name: "BAAI/bge-small-en-v1.5"
-      enabled: false # Standard version, often requires Intel VNNI
+      enabled: false # Disabled by default due to Intel VNNI instruction requirements
 ```
 
 > **Note**: I am currently only testing with the models listed above. If you discover other models that work well with this infrastructure, please let me know! I would be happy to include them in the default configuration.
