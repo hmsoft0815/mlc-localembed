@@ -30,7 +30,20 @@ We use this tool internally for **RAG (Retrieval-Augmented Generation)** workflo
 
 ## Configuration
 
-Settings are managed in `config.yaml`:
+Settings are managed via `config.yaml` or environment variables (which take precedence).
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MLC_PORT` | Server port | `9000` |
+| `MLC_LOG_LEVEL` | Log level (`info`, `debug`) | `info` |
+| `MLC_CACHE_DIR` | Path to model cache | `./mlcembed` |
+| `MLC_INTRA_THREADS` | ONNX intra-op threads | From config |
+| `MLC_INTER_THREADS` | ONNX inter-op threads | From config |
+| `MLC_DEFAULT_MODEL` | Default model name | From config |
+
+### config.yaml
 
 ```yaml
 onnx:
