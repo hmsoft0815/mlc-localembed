@@ -1,12 +1,12 @@
-# Binaries
-bin/
-server
-preloader
-cli
+# Binaries (anchored to root)
+/bin/
+/server
+/preloader
+/cli
 libonnxruntime.so
 
 # Model Cache
-mlcembed/
+/mlcembed/
 
 # Environment
 .env
