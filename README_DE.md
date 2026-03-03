@@ -2,7 +2,7 @@
   <img src="docs/minilogo884x484.png" width="300" alt="mlc-localembed logo">
 </p>
 
-# mlc-localembed v0.1.1
+# mlc-localembed v0.2.0
 
 [![Go Version](https://img.shields.io/github/go-mod/go-version/hmsoft0815/mlc-localembed)](https://golang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -19,14 +19,17 @@ Wir nutzen dieses Tool intern für **RAG (Retrieval-Augmented Generation)** Work
 - **Kosteneinsparungen**: Keine Kosten pro Token für das Einbetten großer Datensätze zur Indizierung.
 - **Effizienz**: Die optimierte ONNX-Ausführung ist für kleine Embedding-Modelle oft schneller als allgemeine LLM-Runner.
 - **Trennung der Zuständigkeiten**: Halten Sie Ihre "schwere" LLM-Verarbeitung getrennt von Ihren "hochfrequenten" Embedding-Aufgaben.
+- **CPU-First Strategie**: Wir setzen bewusst auf die CPU-Ausführung. Während GPU-Unterstützung jederzeit möglich wäre, erlaubt die CPU-Optimierung den Betrieb auf nahezu jeder Hardware – von modernen M1/M2-Chips bis hin zu ausgedienten Servern oder günstigen Mini-PCs, ohne dass teure GPUs oder komplexe Treiber-Setups nötig sind.
+
+Dies sollte auf moderner Hardware (z.B. M1 etc.) kein Problem sein – aber seien Sie gewarnt, ältere CPUs könnten bei einigen Modellen Probleme verursachen.
 
 ## Features
-...
 
 - **Schnell & Leichtgewichtig**: Entwickelt in Go mit ONNX Runtime für minimalen Overhead.
 - **Ollama-kompatibel**: Unterstützt `/api/embed` und `/api/tags` Endpunkte.
 - **Konfigurierbar**: Modelle und Runtime-Einstellungen lassen sich einfach über YAML verwalten.
 - **Ressourcen-Management**: Integrierter Schutz für Multi-Core-Systeme (Xeon Freeze-Schutz).
+- **Netzwerk-Isolation**: 100% Air-Gapped Laufzeit, sobald die Modelle vorgeladen sind.
 
 ## Konfiguration
 
@@ -56,14 +59,14 @@ models:
       enabled: true
     - name: "BAAI/bge-small-en-v1.5"
       enabled: false # Standardmäßig deaktiviert wegen fehlender Intel VNNI Unterstützung
+```
 
 > **Hinweis**: Ich teste derzeit nur mit den oben aufgeführten Modellen. Falls Sie weitere Modelle finden, die mit dieser Infrastruktur gut funktionieren, freue ich mich über einen Hinweis! Gerne nehme ich diese dann in die Standard-Konfiguration mit auf.
-```
 
 ### Technische Hinweise
 
 - **Xeon Freeze-Schutz**: Auf einigen Systemen mit vielen Kernen (z. B. Xeon-Prozessoren) versucht die ONNX-Runtime unter Umständen, alle verfügbaren Kerne zu nutzen, was zu Systeminstabilität führen kann. Wir limitieren `intra_op_num_threads` standardmäßig, um einen stabilen Betrieb zu gewährleisten.
-- **Intel VNNI Unterstützung**: Einige optimierte Modelle benötigen den Intel VNNI Befehlssatz. Wenn Ihre CPU dies nicht unterstützt (z. B. ältere Prozessoren oder Nicht-Intel CPUs), können bestimmte Modelle fehlschlagen oder langsam sein. Diese Modelle sind standardmäßig deaktiviert.
+- **Intel VNNI Unterstützung**: Einige optimierte Modelle benötigen den Intel VNNI Befehlssatz. Wenn Ihre CPU dies nicht unterstützt (z. B. ältere Prozessoren oder Nicht-Intel CPUs), können bestimmte Modelle fehlschlagen oder langsam sein. Diese Modelle sind standardmäßig deaktiviert. Wenn ich es getestet habe, habe ich sogar meinen Xeon-Server zum Absturz gebracht (der keine Unterstützung dafür hatte).
 
 ## Benutzung
 
@@ -94,9 +97,33 @@ Ein einfaches Werkzeug, um Embeddings direkt über die Kommandozeile zu testen.
 
 ## API Endpunkte
 
-- `POST /api/embed`: Erzeugt Embeddings für einen oder mehrere Strings.
-- `GET /api/tags`: Listet verfügbare und aktivierte Modelle auf.
+- `POST /api/embed`: Erzeugt Embeddings für einen oder mehrere Strings (Ollama-kompatibel).
+- `GET /api/tags`: Listet verfügbare und aktivierte Modelle auf (Ollama-kompatibel).
 - `GET /api/health`: Einfacher Gesundheitscheck.
+- `POST /api/test/similarity`: **(Neu in v0.2.0)** Direkter Vergleich einer Suchanfrage mit mehreren Dokumenten, um semantische Ähnlichkeitswerte zu erhalten.
+
+### Similarity API Beispiel
+
+```bash
+curl -X POST http://localhost:9142/api/test/similarity \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "multilingual-e5-small",
+    "query": "Was ist die Hauptstadt von Frankreich?",
+    "documents": ["Paris ist die Hauptstadt.", "Berlin liegt in Deutschland.", "Die Sonne ist ein Stern."]
+  }'
+```
+**Antwort:**
+```json
+{
+  "model": "multilingual-e5-small",
+  "scores": [
+    { "document": "Paris ist die Hauptstadt.", "score": 0.9115 },
+    { "document": "Berlin liegt in Deutschland.", "score": 0.8593 },
+    { "document": "Die Sonne ist ein Stern.", "score": 0.8685 }
+  ]
+}
+```
 
 ## Tests
 
