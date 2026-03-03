@@ -82,6 +82,16 @@ A simple tool to test embeddings directly from the command line.
 - `GET /api/tags`: List available and enabled models.
 - `GET /api/health`: Basic health check.
 
+## Support & Consulting
+
+If you need professional support, custom model integrations, or enterprise-grade deployment assistance, feel free to reach out. I offer consulting services for:
+
+- **Performance Optimization**: Tuning for specific server hardware (e.g., high-core Xeon systems).
+- **Custom Models**: Integrating and optimizing specialized ONNX embedding models.
+- **Enterprise RAG**: Architecture design and integration into your existing RAG workflows.
+
+You can contact me via **GitHub Issues** or directly at **[your-email@example.com]**.
+
 ## Acknowledgments
 
 This project is primarily an infrastructure layer built on top of excellent existing work. I am grateful to be able to leverage the following libraries and runtimes:

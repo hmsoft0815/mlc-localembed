@@ -79,6 +79,16 @@ Ein einfaches Werkzeug, um Embeddings direkt über die Kommandozeile zu testen.
 - `GET /api/tags`: Listet verfügbare und aktivierte Modelle auf.
 - `GET /api/health`: Einfacher Gesundheitscheck.
 
+## Support & Consulting
+
+Falls Sie professionelle Unterstützung, maßgeschneiderte Modell-Integrationen oder Hilfe bei Enterprise-Deployments benötigen, können Sie mich gerne kontaktieren. Ich biete Beratung für:
+
+- **Performance-Optimierung**: Tuning für spezifische Server-Hardware (z. B. High-Core Xeon-Systeme).
+- **Custom Models**: Integration und Optimierung spezieller ONNX-Embedding-Modelle.
+- **Enterprise RAG**: Architektur-Design und Integration in bestehende RAG-Workflows.
+
+Sie erreichen mich über **GitHub Issues** oder direkt per E-Mail unter **[ihre-email@example.com]**.
+
 ## Danksagung
 
 Dieses Projekt ist in erster Linie eine Infrastrukturschicht, die auf exzellenter Vorarbeit aufbaut. Ich bin dankbar, die folgenden Bibliotheken und Runtimes nutzen zu können:
