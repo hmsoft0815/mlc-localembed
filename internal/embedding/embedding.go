@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -15,6 +16,42 @@ import (
 	"github.com/sugarme/tokenizer/pretrained"
 	ort "github.com/yalue/onnxruntime_go"
 )
+
+// findOnnxRuntime searches for the ONNX runtime library in common locations
+func findOnnxRuntime() string {
+	onnxPath := os.Getenv("ONNX_PATH")
+	if onnxPath != "" {
+		return onnxPath
+	}
+
+	var libName string
+	switch runtime.GOOS {
+	case "darwin":
+		libName = "libonnxruntime.dylib"
+	case "windows":
+		libName = "onnxruntime.dll"
+	default:
+		libName = "libonnxruntime.so"
+	}
+
+	// Search paths
+	searchPaths := []string{
+		libName,
+		filepath.Join("..", libName),
+		filepath.Join("bin", libName),
+	}
+
+	// Add absolute path for development environment if it exists
+	devPath := "/mnt/data2tb/mlcmcp/mcp-proxy/toolrag/localembed"
+	searchPaths = append(searchPaths, filepath.Join(devPath, libName))
+
+	for _, p := range searchPaths {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
+}
 
 // Embedder defines an interface for model execution
 type Embedder interface {
@@ -52,21 +89,7 @@ func NewCustomEmbedder(modelPath string, dim int, intraThreads, interThreads int
 
 	// 2. Initialize ONNX Environment if needed
 	if !ort.IsInitialized() {
-		onnxPath := os.Getenv("ONNX_PATH")
-		if onnxPath == "" {
-			// Search for libonnxruntime.so in common locations
-			searchPaths := []string{
-				"libonnxruntime.so",
-				"../libonnxruntime.so",
-				"/mnt/data2tb/mlcmcp/mcp-proxy/toolrag/localembed/libonnxruntime.so",
-			}
-			for _, p := range searchPaths {
-				if _, err := os.Stat(p); err == nil {
-					onnxPath = p
-					break
-				}
-			}
-		}
+		onnxPath := findOnnxRuntime()
 		if onnxPath != "" {
 			ort.SetSharedLibraryPath(onnxPath)
 		}

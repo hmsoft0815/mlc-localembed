@@ -76,6 +76,20 @@ tasks:
           pkill -f bin/server && echo "Server stopped (via pkill)" || echo "Server not running"
         fi
 
+  ping:
+    desc: Check server health and stats
+    cmds:
+      - |
+        URL=${MLC_BASE_URL:-"http://localhost:9142"}
+        if ! curl -s "$URL/api/health" > /dev/null; then
+          echo "Server is NOT running at $URL"
+          exit 0
+        fi
+        echo "--- Health ---"
+        curl -s "$URL/api/health" | jq . || curl -s "$URL/api/health"
+        echo -e "\n--- Stats ---"
+        curl -s "$URL/api/stats" | jq . || curl -s "$URL/api/stats"
+
   preload:
     desc: Preload models (Go version with HF_TOKEN support)
     env:
