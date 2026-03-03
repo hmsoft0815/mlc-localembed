@@ -110,7 +110,6 @@ Für Support-Anfragen öffnen Sie bitte ein **GitHub Issue** oder kontaktieren S
 
 Dieses Projekt ist in erster Linie eine Infrastrukturschicht, die auf exzellenter Vorarbeit aufbaut. Ich bin dankbar, die folgenden Bibliotheken und Runtimes nutzen zu können:
 
-- [fastembed-go](https://github.com/anush008/fastembed-go) für die Kernlogik der Einbettungen.
 - [onnxruntime-go](https://github.com/yalue/onnxruntime_go) für die performante Modellausführung.
 - [tokenizer](https://github.com/sugarme/tokenizer) für die Textverarbeitung.
 

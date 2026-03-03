@@ -113,7 +113,6 @@ For support inquiries, please **open a GitHub Issue** or contact me via my **Git
 
 This project is primarily an infrastructure layer built on top of excellent existing work. I am grateful to be able to leverage the following libraries and runtimes:
 
-- [fastembed-go](https://github.com/anush008/fastembed-go) for the core embedding logic.
 - [onnxruntime-go](https://github.com/yalue/onnxruntime_go) for high-performance model execution.
 - [tokenizer](https://github.com/sugarme/tokenizer) for text processing.
 
