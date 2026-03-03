@@ -326,13 +326,13 @@ func NewCustomEmbedderWithFile(modelPath, onnxPath string, dim int, intraThreads
 		return nil, fmt.Errorf("failed to create session options: %w", err)
 	}
 	defer options.Destroy()
+if intraThreads > 0 {
+	options.SetIntraOpNumThreads(intraThreads)
+}
+if interThreads > 0 {
+	options.SetInterOpNumThreads(interThreads)
+}
 
-	if intraThreads > 0 {
-		options.SetIntraOpNumThreads(intraThreads)
-	}
-	if interThreads > 0 {
-		options.SetInterOpNumThreads(interThreads)
-	}
 
 
 	// 3. Prepare pre-allocated buffers

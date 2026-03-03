@@ -108,6 +108,11 @@ tasks:
     cmds:
       - go run tests/integration/compare_ollama.go
 
+  test-curl:
+    desc: Run curl-based integration tests
+    cmds:
+      - ./tests/run_curl_tests.sh
+
   download-onnx:
     desc: Download ONNX runtime library for the current platform
     cmds:
