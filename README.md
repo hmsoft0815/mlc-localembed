@@ -67,7 +67,6 @@ models:
 
 This should not be a problem on modern hardware (e.g. M1 etc) - but be warned, older CPUs might cause problems for
 some models.
-
 ## Usage
 
 The project includes three main tools in the `bin/` directory:
@@ -85,9 +84,13 @@ Starts the Ollama-compatible API server.
 ```bash
 ./bin/server
 ```
-The server will be available at `http://localhost:9000` (default).
+The server will be available at `http://localhost:9142` (default).
+
+> **Ollama Drop-in Replacement**: To use this as a replacement for Ollama's embedding service in existing tools, you can either change your tool's configuration to port `9142` or set `MLC_PORT=11434` (Ollama's default port) before starting the server.
 
 ### 3. CLI Tool (`bin/cli`)
+...
+
 A simple tool to test embeddings directly from the command line.
 ```bash
 ./bin/cli -text "Your text here" -model "multilingual-e5-small"

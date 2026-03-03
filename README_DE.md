@@ -84,6 +84,8 @@ Startet den Ollama-kompatiblen API-Server.
 ```
 Der Server ist standardmäßig unter `http://localhost:9142` erreichbar.
 
+> **Ollama Drop-in Replacement**: Um dies als Ersatz für den Ollama-Embedding-Dienst in bestehenden Tools zu nutzen, können Sie entweder die Konfiguration Ihres Tools auf Port `9142` ändern oder `MLC_PORT=11434` (Ollamas Standard-Port) setzen, bevor Sie den Server starten.
+
 ### 3. CLI-Tool (`bin/cli`)
 Ein einfaches Werkzeug, um Embeddings direkt über die Kommandozeile zu testen.
 ```bash
