@@ -76,83 +76,6 @@ type CustomEmbedder struct {
 	mu      sync.Mutex
 }
 
-func NewCustomEmbedder(modelPath string, dim int, intraThreads, interThreads int) (*CustomEmbedder, error) {
-	// 1. Load Tokenizer
-	tk, err := pretrained.FromFile(filepath.Join(modelPath, "tokenizer.json"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to load tokenizer at %s: %w", modelPath, err)
-	}
-
-	maxLen := 512
-	// We disable auto-truncation to detect when input is too long
-	tk.WithTruncation(nil)
-
-	// 2. Initialize ONNX Environment if needed
-	if !ort.IsInitialized() {
-		onnxPath := findOnnxRuntime()
-		if onnxPath != "" {
-			ort.SetSharedLibraryPath(onnxPath)
-		}
-		if err := ort.InitializeEnvironment(); err != nil {
-			return nil, fmt.Errorf("failed to init ONNX: %w", err)
-		}
-	}
-
-	// Session options
-	options, err := ort.NewSessionOptions()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create session options: %w", err)
-	}
-	defer options.Destroy()
-
-	if intraThreads > 0 {
-		options.SetIntraOpNumThreads(intraThreads)
-	}
-	if interThreads > 0 {
-		options.SetInterOpNumThreads(interThreads)
-	}
-
-	// 3. Prepare pre-allocated buffers
-	inputShape := ort.NewShape(1, int64(maxLen))
-	inputIds := make([]int64, maxLen)
-	attentionMask := make([]int64, maxLen)
-	tokenTypeIds := make([]int64, maxLen)
-
-	t1, _ := ort.NewTensor(inputShape, inputIds)
-	t2, _ := ort.NewTensor(inputShape, attentionMask)
-	t3, _ := ort.NewTensor(inputShape, tokenTypeIds)
-
-	outputShape := ort.NewShape(1, int64(maxLen), int64(dim))
-	outputData := make([]float32, 1*maxLen*dim)
-	tOut, _ := ort.NewTensor(outputShape, outputData)
-
-	// 4. Create Session
-	session, err := ort.NewAdvancedSession(
-		filepath.Join(modelPath, "model.onnx"),
-		[]string{"input_ids", "attention_mask", "token_type_ids"},
-		[]string{"last_hidden_state"},
-		[]ort.ArbitraryTensor{t1, t2, t3},
-		[]ort.ArbitraryTensor{tOut},
-		options,
-	)
-	if err != nil {
-		t1.Destroy(); t2.Destroy(); t3.Destroy(); tOut.Destroy()
-		return nil, fmt.Errorf("failed to create session for %s: %w", modelPath, err)
-	}
-
-	return &CustomEmbedder{
-		tokenizer:     tk,
-		session:       session,
-		dim:           dim,
-		maxLen:        maxLen,
-		inputIds:      inputIds,
-		attentionMask: attentionMask,
-		tokenTypeIds:  tokenTypeIds,
-		outputData:    outputData,
-		tensors:       []ort.ArbitraryTensor{t1, t2, t3, tOut},
-	}, nil
-}
-
 func (e *CustomEmbedder) Embed(docs []string) ([][]float32, error) {
 	if len(docs) == 0 {
 		return nil, fmt.Errorf("no documents provided")
@@ -246,6 +169,7 @@ type Manager struct {
 	mu                sync.RWMutex
 	onnxIntraThreads int
 	onnxInterThreads int
+	configModels     map[string]string // model name -> custom filename
 }
 
 func NewManager(cacheDir string) *Manager {
@@ -261,9 +185,16 @@ func NewManager(cacheDir string) *Manager {
 	}
 
 	return &Manager{
-		cacheDir: cacheDir,
-		models:   make(map[string]Embedder),
+		cacheDir:     cacheDir,
+		models:       make(map[string]Embedder),
+		configModels: make(map[string]string),
 	}
+}
+
+func (m *Manager) SetModelConfig(name, filename string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.configModels[name] = filename
 }
 
 func (m *Manager) SetOnnxOptions(intra, inter int) {
@@ -278,6 +209,7 @@ func (m *Manager) GetEmbedder(name string) (Embedder, error) {
 	emb, ok := m.models[name]
 	intra := m.onnxIntraThreads
 	inter := m.onnxInterThreads
+	customFile := m.configModels[name]
 	m.mu.RUnlock()
 	if ok {
 		return emb, nil
@@ -307,12 +239,103 @@ func (m *Manager) GetEmbedder(name string) (Embedder, error) {
 	// Determine dimension
 	dim := 384
 
-	newEmb, err := NewCustomEmbedder(path, dim, intra, inter)
+	// Handle custom filename
+	onnxFile := "model.onnx"
+	if customFile != "" {
+		onnxFile = customFile
+	}
+
+	// If the custom filename contains path segments (like "onnx/model.onnx"),
+	// and we are just looking for the file in 'path', we need to join them.
+	fullOnnxPath := filepath.Join(path, onnxFile)
+
+	newEmb, err := NewCustomEmbedderWithFile(path, fullOnnxPath, dim, intra, inter)
 	if err != nil {
 		return nil, err
 	}
 	m.models[name] = newEmb
 	return newEmb, nil
+}
+
+func NewCustomEmbedderWithFile(modelPath, onnxPath string, dim int, intraThreads, interThreads int) (*CustomEmbedder, error) {
+	// 1. Load Tokenizer
+	tk, err := pretrained.FromFile(filepath.Join(modelPath, "tokenizer.json"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to load tokenizer at %s: %w", modelPath, err)
+	}
+
+	maxLen := 512
+	// We disable auto-truncation to detect when input is too long
+	tk.WithTruncation(nil)
+
+	// 2. Initialize ONNX Environment if needed
+	if !ort.IsInitialized() {
+		rtPath := findOnnxRuntime()
+		if rtPath != "" {
+			ort.SetSharedLibraryPath(rtPath)
+		}
+		if err := ort.InitializeEnvironment(); err != nil {
+			return nil, fmt.Errorf("failed to init ONNX: %w", err)
+		}
+	}
+
+	// Session options
+	options, err := ort.NewSessionOptions()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create session options: %w", err)
+	}
+	defer options.Destroy()
+
+	if intraThreads > 0 {
+		options.SetIntraOpNumThreads(intraThreads)
+	}
+	if interThreads > 0 {
+		options.SetInterOpNumThreads(interThreads)
+	}
+
+	// 3. Prepare pre-allocated buffers
+	inputShape := ort.NewShape(1, int64(maxLen))
+	inputIds := make([]int64, maxLen)
+	attentionMask := make([]int64, maxLen)
+	tokenTypeIds := make([]int64, maxLen)
+
+	t1, _ := ort.NewTensor(inputShape, inputIds)
+	t2, _ := ort.NewTensor(inputShape, attentionMask)
+	t3, _ := ort.NewTensor(inputShape, tokenTypeIds)
+
+	outputShape := ort.NewShape(1, int64(maxLen), int64(dim))
+	outputData := make([]float32, 1*maxLen*dim)
+	tOut, _ := ort.NewTensor(outputShape, outputData)
+
+	// 4. Create Session
+	session, err := ort.NewAdvancedSession(
+		onnxPath,
+		[]string{"input_ids", "attention_mask", "token_type_ids"},
+		[]string{"last_hidden_state"},
+		[]ort.ArbitraryTensor{t1, t2, t3},
+		[]ort.ArbitraryTensor{tOut},
+		options,
+	)
+	if err != nil {
+		t1.Destroy(); t2.Destroy(); t3.Destroy(); tOut.Destroy()
+		return nil, fmt.Errorf("failed to create session for %s: %w", onnxPath, err)
+	}
+
+	return &CustomEmbedder{
+		tokenizer:     tk,
+		session:       session,
+		dim:           dim,
+		maxLen:        maxLen,
+		inputIds:      inputIds,
+		attentionMask: attentionMask,
+		tokenTypeIds:  tokenTypeIds,
+		outputData:    outputData,
+		tensors:       []ort.ArbitraryTensor{t1, t2, t3, tOut},
+	}, nil
+}
+
+func NewCustomEmbedder(modelPath string, dim int, intraThreads, interThreads int) (*CustomEmbedder, error) {
+	return NewCustomEmbedderWithFile(modelPath, filepath.Join(modelPath, "model.onnx"), dim, intraThreads, interThreads)
 }
 
 func (m *Manager) Embed(name string, docs []string) ([][]float32, error) {

@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 
+	"mlc-localembed/internal/api"
 	"mlc-localembed/internal/embedding"
 	"gopkg.in/yaml.v3"
 )
@@ -18,7 +19,8 @@ type Config struct {
 		CacheDir string `yaml:"cache_dir"`
 	} `yaml:"storage"`
 	Models struct {
-		Default string `yaml:"default"`
+		Default   string           `yaml:"default"`
+		Available []api.ConfigModel `yaml:"available"`
 	} `yaml:"models"`
 }
 
@@ -53,6 +55,13 @@ func main() {
 	// 2. Initialize embedding manager
 	manager := embedding.NewManager(config.Storage.CacheDir)
 	defer manager.Close()
+
+	// Configure custom model files
+	for _, m := range config.Models.Available {
+		if m.ModelFile != "" {
+			manager.SetModelConfig(m.Name, m.ModelFile)
+		}
+	}
 
 	// 3. Generate embedding
 	fmt.Printf("Using model: %s\n", *model)

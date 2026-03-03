@@ -20,4 +20,10 @@ models:
     - name: "BAAI/bge-small-en-v1.5"
       dim: 384
       description: "Fast English embedding"
-      enabled: false # Disabled due to lack of Intel VNNI support if applicable
+      enabled: false
+    - name: "Xenova/bge-small-en-v1.5"
+      source_repo: "Xenova/bge-small-en-v1.5"
+      model_file: "onnx/model.onnx"
+      dim: 384
+      description: "Xenova optimized English embedding"
+      enabled: true

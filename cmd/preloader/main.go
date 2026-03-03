@@ -22,7 +22,9 @@ type Config struct {
 	} `yaml:"storage"`
 	Models struct {
 		Available []struct {
-			Name string `yaml:"name"`
+			Name       string `yaml:"name"`
+			SourceRepo string `yaml:"source_repo"`
+			ModelFile  string `yaml:"model_file"`
 		} `yaml:"available"`
 	} `yaml:"models"`
 }
@@ -99,8 +101,12 @@ func main() {
 	}
 	
 	for _, m := range config.Models.Available {
-		repo, ok := repos[m.Name]
-		if !ok {
+		repo := m.SourceRepo
+		if repo == "" {
+			repo = repos[m.Name]
+		}
+		
+		if repo == "" {
 			fmt.Printf("Kein Repo für %s definiert.\n", m.Name)
 			continue
 		}
@@ -138,20 +144,30 @@ func main() {
 		}
 
 		// 2. Modellgewichte laden
-		destPath := filepath.Join(destDir, "model.onnx")
+		onnxFile := m.ModelFile
+		if onnxFile == "" {
+			onnxFile = "model.onnx"
+		}
+		
+		// Simple normalization: if we expect it in the root of destDir
+		// but it has a path in HF repo (like "onnx/model.onnx")
+		localOnnxFile := filepath.Base(onnxFile)
+		destPath := filepath.Join(destDir, localOnnxFile)
 		
 		// Wenn Datei existiert und > 200MB ist (für E5), wollen wir die Xeon-Version erzwingen
 		isLarge := false
 		if info, err := os.Stat(destPath); err == nil {
-			if info.Size() > 200*1024*1024 && m.Name == "multilingual-e5-small" {
+			if info.Size() > 200*1024*1024 && m.Name == "multilingual-e5-small" && m.ModelFile == "" {
 				isLarge = true
 				fmt.Println("Gefunden: Standard-Modell (groß). Versuche Upgrade auf Xeon-optimierte Version (118MB)...")
 			}
 		}
 
 		if _, err := os.Stat(destPath); err != nil || isLarge {
-			modelVariants := []string{"model.onnx"}
-			if m.Name == "multilingual-e5-small" {
+			var modelVariants []string
+			if m.ModelFile != "" {
+				modelVariants = []string{m.ModelFile}
+			} else if m.Name == "multilingual-e5-small" {
 				modelVariants = []string{
 					"onnx/model_qint8_avx512_vnni.onnx", 
 					"onnx/model_O4.onnx",
@@ -180,7 +196,7 @@ func main() {
 				fmt.Printf("FEHLER: Konnte kein ONNX Modell für %s finden.\n", m.Name)
 			}
 		} else {
-			fmt.Printf("OK: model.onnx vorhanden.\n")
+			fmt.Printf("OK: %s vorhanden.\n", localOnnxFile)
 		}
 	}
 	fmt.Println("\nFertig.")

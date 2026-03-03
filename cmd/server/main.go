@@ -100,11 +100,14 @@ func main() {
 	manager := embedding.NewManager(config.Storage.CacheDir)
 	manager.SetOnnxOptions(config.Onnx.IntraOpNumThreads, config.Onnx.InterOpNumThreads)
 
-	// Filter available models based on config
+	// Filter available models based on config and apply custom files
 	var availableModels []api.ConfigModel
 	for _, m := range config.Models.Available {
 		if m.Enabled == nil || *m.Enabled {
 			availableModels = append(availableModels, m)
+			if m.ModelFile != "" {
+				manager.SetModelConfig(m.Name, m.ModelFile)
+			}
 		}
 	}
 
