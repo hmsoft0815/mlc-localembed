@@ -467,3 +467,13 @@ func (m *Manager) Close() {
 	}
 	m.models = make(map[string]Embedder)
 }
+
+func (m *Manager) GetActiveModels() []string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	active := make([]string, 0, len(m.models))
+	for name := range m.models {
+		active = append(active, name)
+	}
+	return active
+}

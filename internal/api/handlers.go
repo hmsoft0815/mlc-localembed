@@ -33,6 +33,11 @@ type TagResponse struct {
 	Models []ModelDetails `json:"models"`
 }
 
+// ProcessResponse follows Ollama's /api/ps response structure
+type ProcessResponse struct {
+	Models []ModelDetails `json:"models"`
+}
+
 // SimilarityRequest for the test API
 type SimilarityRequest struct {
 	Model     string   `json:"model" binding:"required"`
@@ -270,6 +275,43 @@ func (h *Handler) HandleTags(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, TagResponse{
+		Models: models,
+	})
+}
+
+func (h *Handler) HandlePs(c *gin.Context) {
+	active := h.manager.GetActiveModels()
+	var models []ModelDetails
+	for _, name := range active {
+		// Try to find original config for better details
+		var mCfg *ConfigModel
+		for i := range h.configModels {
+			if h.configModels[i].Name == name {
+				mCfg = &h.configModels[i]
+				break
+			}
+		}
+
+		details := ModelDetails{
+			Name:       name,
+			ModifiedAt: time.Now(), // Loaded recently
+			Size:       0,          // Placeholder
+			Digest:     "sha256:...",
+			Details: Details{
+				Format:            "onnx",
+				Family:            "bert",
+				Families:          []string{"bert"},
+				ParameterSize:     "small",
+				QuantizationLevel: "f32",
+			},
+		}
+		if mCfg != nil {
+			// Could customize details based on config if needed
+		}
+		models = append(models, details)
+	}
+
+	c.JSON(http.StatusOK, ProcessResponse{
 		Models: models,
 	})
 }

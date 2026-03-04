@@ -130,6 +130,7 @@ func main() {
 	r.POST("/api/embeddings", handler.HandleEmbed) // Plural for older clients
 	r.POST("/api/generate", handler.HandleGenerate)
 	r.GET("/api/tags", handler.HandleTags)
+	r.GET("/api/ps", handler.HandlePs)
 	r.GET("/api/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok", "version": api.Version})
 	})
