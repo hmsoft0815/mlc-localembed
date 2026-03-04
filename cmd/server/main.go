@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,7 +20,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
 )
+
 const ollamaVersion = "0.17.4"
+
 func printBanner(version string) {
 	banner := `
     __                     __                     __              __
@@ -37,14 +40,22 @@ func printBanner(version string) {
 func printHelp() {
 	fmt.Println("\nUsage: localembed-server [options]")
 	fmt.Println("\nOptions:")
-	fmt.Println("  -h, --help    Show this help message")
-	fmt.Println("\nConfiguration:")
-	fmt.Println("  The server looks for 'config.yaml' in the current or parent directory.")
+	fmt.Println("  -config <path>        Path to config file (default: config.yaml)")
+	fmt.Println("  -port <int>           Port to listen on (default: 9142)")
+	fmt.Println("  -cache-dir <path>     Directory to store models (default: ./mlcembed)")
+	fmt.Println("  -concurrency <int>    Max concurrent requests (default: 4)")
+	fmt.Println("  -log-level <string>   Log level: info, debug (default: info)")
+	fmt.Println("  -h, --help            Show this help message")
+	fmt.Println("\nConfiguration Priority:")
+	fmt.Println("  1. Command-line flags (highest)")
+	fmt.Println("  2. Environment variables")
+	fmt.Println("  3. config.yaml file")
+	fmt.Println("  4. Compiled-in defaults (lowest)")
 	fmt.Println("\nEnvironment Variable Overrides:")
-	fmt.Println("  MLC_PORT              Port to listen on (default: 9142)")
-	fmt.Println("  MLC_LOG_LEVEL         Log level: info, debug (default: info)")
-	fmt.Println("  MLC_MAX_CONCURRENCY   Max concurrent embedding requests (default: 4)")
-	fmt.Println("  MLC_CACHE_DIR         Directory to store models (default: ./mlcembed)")
+	fmt.Println("  MLC_PORT              Matches -port")
+	fmt.Println("  MLC_LOG_LEVEL         Matches -log-level")
+	fmt.Println("  MLC_MAX_CONCURRENCY   Matches -concurrency")
+	fmt.Println("  MLC_CACHE_DIR         Matches -cache-dir")
 	fmt.Println("  MLC_INTRA_THREADS     ONNX Intra-op threads")
 	fmt.Println("  MLC_INTER_THREADS     ONNX Inter-op threads")
 	fmt.Println("  MLC_DEFAULT_MODEL     Default model name to use")
@@ -52,16 +63,9 @@ func printHelp() {
 }
 
 type Config struct {
-...
-func main() {
-	if len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
-		printHelp()
-		return
-	}
-
-	printBanner(api.Version)
-	// 1. Load config
-
+	Server struct {
+		Port           int    `yaml:"port"`
+		LogLevel       string `yaml:"log_level"`
 		MaxConcurrency int    `yaml:"max_concurrency"`
 	} `yaml:"server"`
 	Storage struct {
@@ -72,32 +76,50 @@ func main() {
 		InterOpNumThreads int `yaml:"inter_op_num_threads"`
 	} `yaml:"onnx"`
 	Models struct {
-		Default   string           `yaml:"default"`
+		Default   string            `yaml:"default"`
 		Available []api.ConfigModel `yaml:"available"`
 	} `yaml:"models"`
 }
 
 func main() {
-	printBanner(api.Version)
-	// 1. Load config
-	configPath := "config.yaml"
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		// Try parent directory (if run from bin/)
-		if _, err := os.Stat("../config.yaml"); err == nil {
-			configPath = "../config.yaml"
-		}
+	// Define flags
+	configPathFlag := flag.String("config", "config.yaml", "Path to config file")
+	portFlag := flag.Int("port", 0, "Port to listen on")
+	cacheDirFlag := flag.String("cache-dir", "", "Directory to store models")
+	concurrencyFlag := flag.Int("concurrency", 0, "Max concurrent requests")
+	logLevelFlag := flag.String("log-level", "", "Log level (info, debug)")
+	helpFlag := flag.Bool("help", false, "Show help")
+	hFlag := flag.Bool("h", false, "Show help")
+
+	flag.Parse()
+
+	if *helpFlag || *hFlag {
+		printHelp()
+		return
 	}
 
-	configFile, err := os.ReadFile(configPath)
-	if err != nil {
-		log.Printf("warning: %s not found, using defaults and environment variables", configPath)
+	printBanner(api.Version)
+
+	// 1. Resolve Config Path and Load file
+	configPath := *configPathFlag
+	if configPath == "config.yaml" {
+		// If using default, check current and parent dir
+		if _, err := os.Stat(configPath); os.IsNotExist(err) {
+			if _, err := os.Stat("../config.yaml"); err == nil {
+				configPath = "../config.yaml"
+			}
+		}
 	}
 
 	var config Config
-	if configFile != nil {
+	if configFile, err := os.ReadFile(configPath); err == nil {
 		if err := yaml.Unmarshal(configFile, &config); err != nil {
 			log.Fatalf("failed to parse config: %v", err)
 		}
+	} else if *configPathFlag != "config.yaml" {
+		log.Fatalf("failed to read config file at %s: %v", configPath, err)
+	} else {
+		log.Printf("warning: %s not found, using defaults, env, and flags", configPath)
 	}
 
 	// 2. Override with Environment Variables
@@ -123,6 +145,20 @@ func main() {
 		config.Models.Default = val
 	}
 
+	// 3. Override with Flags (if provided)
+	if *portFlag != 0 {
+		config.Server.Port = *portFlag
+	}
+	if *cacheDirFlag != "" {
+		config.Storage.CacheDir = *cacheDirFlag
+	}
+	if *concurrencyFlag != 0 {
+		config.Server.MaxConcurrency = *concurrencyFlag
+	}
+	if *logLevelFlag != "" {
+		config.Server.LogLevel = *logLevelFlag
+	}
+
 	// Set defaults if still zero
 	if config.Server.Port == 0 {
 		config.Server.Port = 9142
@@ -134,7 +170,7 @@ func main() {
 		config.Storage.CacheDir = "./mlcembed"
 	}
 
-	// 3. Initialize embedding manager
+	// 4. Initialize embedding manager
 	manager := embedding.NewManager(config.Storage.CacheDir)
 	manager.SetOnnxOptions(config.Onnx.IntraOpNumThreads, config.Onnx.InterOpNumThreads)
 
@@ -155,10 +191,10 @@ func main() {
 		}
 	}
 
-	// 3. Initialize API handler
+	// 5. Initialize API handler
 	handler := api.NewHandler(manager, availableModels, config.Models.Default, config.Server.MaxConcurrency)
 
-	// 4. Setup Gin
+	// 6. Setup Gin
 	if config.Server.LogLevel == "info" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -179,7 +215,7 @@ func main() {
 	})
 	r.GET("/api/version", func(c *gin.Context) {
 		c.JSON(200, gin.H{
-			"version": ollamaVersion, // meine ollama antwort - und unser test server..
+			"version": ollamaVersion,
 			"via":     fmt.Sprintf("mlc-localembed %s", api.Version),
 		})
 	})
@@ -187,7 +223,7 @@ func main() {
 	r.POST("/api/embed/faker", handler.HandleEmbedFaker)
 	r.POST("/api/test/similarity", handler.HandleSimilarity)
 
-	// 5. Start server with Graceful Shutdown support
+	// 7. Start server with Graceful Shutdown support
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", config.Server.Port),
 		Handler: r,
@@ -196,7 +232,7 @@ func main() {
 	// Initializing the server in a goroutine so that
 	// it won't block the graceful shutdown handling below
 	go func() {
-		fmt.Printf("Server listening on %s\n", srv.Addr)
+		fmt.Printf(" Listening on %s\n", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %s\n", err)
 		}
@@ -205,22 +241,17 @@ func main() {
 	// Wait for interrupt signal to gracefully shutdown the server with
 	// a timeout of 5 seconds.
 	quit := make(chan os.Signal, 1)
-	// kill (no parameter) default send syscall.SIGTERM
-	// kill -2 is syscall.SIGINT
-	// kill -9 is syscall.SIGKILL but can't be caught, so no need to add it
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down server...")
 
-	// The context is used to inform the server it has 5 seconds to finish
-	// the request it is currently handling
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatal("Server forced to shutdown:", err)
 	}
 
-	// 6. Close Manager (closes ONNX sessions)
+	// 8. Close Manager (closes ONNX sessions)
 	log.Println("Closing embedding sessions...")
 	manager.Close()
 
