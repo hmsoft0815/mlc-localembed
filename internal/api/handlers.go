@@ -4,6 +4,7 @@
 package api
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -36,6 +37,20 @@ type TagResponse struct {
 // ProcessResponse follows Ollama's /api/ps response structure
 type ProcessResponse struct {
 	Models []ModelDetails `json:"models"`
+}
+
+// ShowRequest follows Ollama's /api/show request structure
+type ShowRequest struct {
+	Name string `json:"name" binding:"required"`
+}
+
+// ShowResponse follows Ollama's /api/show response structure
+type ShowResponse struct {
+	Modelfile  string                 `json:"modelfile"`
+	Parameters string                 `json:"parameters"`
+	Template   string                 `json:"template"`
+	Details    Details                `json:"details"`
+	ModelInfo  map[string]interface{} `json:"model_info"`
 }
 
 // SimilarityRequest for the test API
@@ -314,6 +329,64 @@ func (h *Handler) HandlePs(c *gin.Context) {
 	c.JSON(http.StatusOK, ProcessResponse{
 		Models: models,
 	})
+}
+
+func (h *Handler) HandleShow(c *gin.Context) {
+	var req ShowRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	actualName := h.resolveModel(req.Name)
+	if actualName == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "model not found"})
+		return
+	}
+
+	var mCfg *ConfigModel
+	for i := range h.configModels {
+		if h.configModels[i].Name == actualName {
+			mCfg = &h.configModels[i]
+			break
+		}
+	}
+
+	// Construct a fake Modelfile for information
+	modelfile := fmt.Sprintf("# Modelfile for %s\nFROM %s\n", actualName, actualName)
+	if mCfg != nil {
+		if mCfg.Description != "" {
+			modelfile += fmt.Sprintf("# %s\n", mCfg.Description)
+		}
+		modelfile += fmt.Sprintf("PARAMETER dimension %d\n", mCfg.Dim)
+		if mCfg.Pooling != "" {
+			modelfile += fmt.Sprintf("PARAMETER pooling %s\n", mCfg.Pooling)
+		}
+	}
+
+	resp := ShowResponse{
+		Modelfile: modelfile,
+		Details: Details{
+			Format:            "onnx",
+			Family:            "bert",
+			Families:          []string{"bert"},
+			ParameterSize:     "small",
+			QuantizationLevel: "f32",
+		},
+		ModelInfo: map[string]interface{}{
+			"general.architecture": "bert",
+			"general.description":  "Embedding-only model provided by LocalEmbed",
+		},
+	}
+
+	if mCfg != nil {
+		resp.ModelInfo["onnx.dimension"] = mCfg.Dim
+		if mCfg.Description != "" {
+			resp.ModelInfo["general.description"] = mCfg.Description
+		}
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
 func (h *Handler) HandleSimilarity(c *gin.Context) {
