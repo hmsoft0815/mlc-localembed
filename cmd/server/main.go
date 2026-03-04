@@ -20,7 +20,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 const ollamaVersion = "0.17.4"
-
 func printBanner(version string) {
 	banner := `
     __                     __                     __              __
@@ -35,10 +34,34 @@ func printBanner(version string) {
 	fmt.Println(" ------------------------------------------------")
 }
 
+func printHelp() {
+	fmt.Println("\nUsage: localembed-server [options]")
+	fmt.Println("\nOptions:")
+	fmt.Println("  -h, --help    Show this help message")
+	fmt.Println("\nConfiguration:")
+	fmt.Println("  The server looks for 'config.yaml' in the current or parent directory.")
+	fmt.Println("\nEnvironment Variable Overrides:")
+	fmt.Println("  MLC_PORT              Port to listen on (default: 9142)")
+	fmt.Println("  MLC_LOG_LEVEL         Log level: info, debug (default: info)")
+	fmt.Println("  MLC_MAX_CONCURRENCY   Max concurrent embedding requests (default: 4)")
+	fmt.Println("  MLC_CACHE_DIR         Directory to store models (default: ./mlcembed)")
+	fmt.Println("  MLC_INTRA_THREADS     ONNX Intra-op threads")
+	fmt.Println("  MLC_INTER_THREADS     ONNX Inter-op threads")
+	fmt.Println("  MLC_DEFAULT_MODEL     Default model name to use")
+	fmt.Println("")
+}
+
 type Config struct {
-	Server struct {
-		Port           int    `yaml:"port"`
-		LogLevel       string `yaml:"log_level"`
+...
+func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
+		printHelp()
+		return
+	}
+
+	printBanner(api.Version)
+	// 1. Load config
+
 		MaxConcurrency int    `yaml:"max_concurrency"`
 	} `yaml:"server"`
 	Storage struct {
