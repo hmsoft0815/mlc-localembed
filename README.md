@@ -184,8 +184,29 @@ sudo -u localembed localembed-preloader
   - Binaries: `/usr/bin/localembed-server`, `/usr/bin/localembed-cli`
   - Libraries: `/usr/lib64/localembed/libonnxruntime.so`
   - Config: `/etc/localembed/config.yaml`
-  - Cache: `/var/cache/localembed/mlcembed`
+  - Cache: `/var/lib/localembed/mlcembed`
 - **Logging**: Integration with `journalctl`.
+
+### macOS Installation
+For macOS, we provide a guided installer script that builds the binaries locally and sets up a background service via `launchd`.
+
+```bash
+# Run the guided installer
+chmod +x scripts/install.sh
+./scripts/install.sh
+```
+
+**macOS Security Note (Gatekeeper):**
+Since the ONNX Runtime library is downloaded as a pre-compiled binary, macOS might block it. If you see a security warning, you can allow the library manually:
+1. Open **System Settings** > **Privacy & Security**.
+2. Scroll down to find the blocked library (`libonnxruntime.dylib`) and click **Allow Anyway**.
+3. Alternatively, run this command to remove the quarantine flag:
+   `xattr -d com.apple.quarantine /usr/local/lib/libonnxruntime.dylib`
+
+**Service Management on macOS:**
+- **Start Service**: `launchctl load ~/Library/LaunchAgents/com.localembed.server.plist`
+- **Stop Service**: `launchctl unload ~/Library/LaunchAgents/com.localembed.server.plist`
+- **View Logs**: `tail -f /usr/local/var/log/localembed.log`
 
 ## Testing
 
