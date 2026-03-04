@@ -16,14 +16,16 @@ import (
 
 // EmbedRequest follows Ollama's /api/embed request structure
 type EmbedRequest struct {
-	Model string      `json:"model" binding:"required"`
-	Input interface{} `json:"input" binding:"required"` // Can be string or []string
+	Model  string      `json:"model" binding:"required"`
+	Input  interface{} `json:"input"`  // New style: string or []string
+	Prompt string      `json:"prompt"` // Legacy style: string
 }
 
 // EmbedResponse follows Ollama's /api/embed response structure
 type EmbedResponse struct {
 	Model      string      `json:"model"`
-	Embeddings [][]float32 `json:"embeddings"`
+	Embeddings [][]float32 `json:"embeddings,omitempty"`
+	Embedding  []float32   `json:"embedding,omitempty"` // Legacy style support
 }
 
 // TagResponse follows Ollama's /api/tags response structure
@@ -177,19 +179,26 @@ func (h *Handler) HandleEmbed(c *gin.Context) {
 	}
 
 	var inputs []string
-	switch v := req.Input.(type) {
-	case string:
-		inputs = []string{v}
-	case []interface{}:
-		for _, item := range v {
-			if s, ok := item.(string); ok {
-				inputs = append(inputs, s)
+	if req.Input != nil {
+		switch v := req.Input.(type) {
+		case string:
+			inputs = []string{v}
+		case []interface{}:
+			for _, item := range v {
+				if s, ok := item.(string); ok {
+					inputs = append(inputs, s)
+				}
 			}
+		case []string:
+			inputs = v
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{"error": "input must be string or array of strings"})
+			return
 		}
-	case []string:
-		inputs = v
-	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "input must be string or array of strings"})
+	} else if req.Prompt != "" {
+		inputs = []string{req.Prompt}
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "either input or prompt is required"})
 		return
 	}
 
@@ -226,10 +235,17 @@ func (h *Handler) HandleEmbed(c *gin.Context) {
 		"duration_ms", duration.Milliseconds(),
 	)
 
-	c.JSON(http.StatusOK, EmbedResponse{
+	resp := EmbedResponse{
 		Model:      req.Model, // Ollama returns the name that was used in request
 		Embeddings: embeddings,
-	})
+	}
+
+	// Support legacy single-embedding response if only one input was provided
+	if len(embeddings) == 1 {
+		resp.Embedding = embeddings[0]
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
 func (h *Handler) HandleTags(c *gin.Context) {
