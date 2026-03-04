@@ -127,6 +127,7 @@ func main() {
 	r := gin.Default()
 
 	r.POST("/api/embed", handler.HandleEmbed)
+	r.POST("/api/embeddings", handler.HandleEmbed) // Plural for older clients
 	r.POST("/api/generate", handler.HandleGenerate)
 	r.GET("/api/tags", handler.HandleTags)
 	r.GET("/api/health", func(c *gin.Context) {

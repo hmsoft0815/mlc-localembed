@@ -403,8 +403,10 @@ if interThreads > 0 {
 		return nil, fmt.Errorf("failed to create output tensor: %w", err)
 	}
 
-	// 4. Create Session
-	session, err := ort.NewAdvancedSession(
+	// 4. Create Session (dynamically detect required inputs)
+	// Some models only have input_ids and attention_mask, others have token_type_ids
+	// We check the model's actual requirements to avoid ONNX runtime panics.
+	tempSession, err := ort.NewAdvancedSession(
 		onnxPath,
 		[]string{"input_ids", "attention_mask", "token_type_ids"},
 		[]string{"last_hidden_state"},
@@ -412,10 +414,24 @@ if interThreads > 0 {
 		[]ort.ArbitraryTensor{tOut},
 		options,
 	)
+
+	// If the above fails, try without token_type_ids (common for RoBERTa/XLM-R)
+	if err != nil {
+		tempSession, err = ort.NewAdvancedSession(
+			onnxPath,
+			[]string{"input_ids", "attention_mask"},
+			[]string{"last_hidden_state"},
+			[]ort.ArbitraryTensor{t1, t2},
+			[]ort.ArbitraryTensor{tOut},
+			options,
+		)
+	}
+
 	if err != nil {
 		t1.Destroy(); t2.Destroy(); t3.Destroy(); tOut.Destroy()
 		return nil, fmt.Errorf("failed to create session for %s: %w", onnxPath, err)
 	}
+	session := tempSession
 
 	return &CustomEmbedder{
 		tokenizer:     tk,
