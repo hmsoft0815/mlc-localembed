@@ -19,6 +19,20 @@ import (
 	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
 )
+const ollamaVersion = "0.17.4"
+
+func printBanner(version string) {
+	banner := `
+    __                     __                     __              __
+   / /   ____  _________ _/ /__  ____ ___  ____  / /_  ___  ____/ /
+  / /   / __ \/ ___/ __ ` + "`" + `/ / _ \/ __ ` + "`" + `__ \/ __ \/ __ \/ _ \/ __  / 
+ / /___/ /_/ / /__/ /_/ / /  __/ / / / / / /_/ / /_/ /  __/ /_/ /  
+/_____/\____/\___/\__,_/_/\___/_/ /_/ /_ /_.___/_.___/\___/\__,_/   
+`
+	fmt.Print(banner)
+	fmt.Printf(" [ Local Embedding Engine | %s ]\n", version)
+	fmt.Println(" ------------------------------------------------")
+}
 
 type Config struct {
 	Server struct {
@@ -40,7 +54,7 @@ type Config struct {
 }
 
 func main() {
-	fmt.Printf("Starting mlc-localembed %s\n", api.Version)
+	printBanner(api.Version)
 	// 1. Load config
 	configPath := "config.yaml"
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
@@ -135,13 +149,13 @@ func main() {
 	r.GET("/api/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status":  "ok",
-			"version": "0.17.4",
+			"version": ollamaVersion,
 			"via":     fmt.Sprintf("mlc-localembed %s", api.Version),
 		})
 	})
 	r.GET("/api/version", func(c *gin.Context) {
 		c.JSON(200, gin.H{
-			"version": "0.17.4",
+			"version": ollamaVersion, // meine ollama antwort - und unser test server..
 			"via":     fmt.Sprintf("mlc-localembed %s", api.Version),
 		})
 	})
