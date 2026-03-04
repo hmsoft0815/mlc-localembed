@@ -38,7 +38,7 @@ func printBanner(version string) {
 }
 
 func printHelp() {
-	fmt.Println("\nUsage: localembed-server [options]")
+	fmt.Println("\nUsage: mlcembedder [options]")
 	fmt.Println("\nOptions:")
 	fmt.Println("  -config <path>        Path to config file (default: config.yaml)")
 	fmt.Println("  -port <int>           Port to listen on (default: 9142)")

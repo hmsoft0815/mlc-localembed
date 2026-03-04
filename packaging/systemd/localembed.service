@@ -8,7 +8,7 @@ User=localembed
 Group=localembed
 WorkingDirectory=/var/lib/localembed
 Environment=ONNX_PATH=/usr/lib64/localembed/libonnxruntime.so
-ExecStart=/usr/bin/localembed-server -config /etc/localembed/config.yaml
+ExecStart=/usr/bin/mlcembedder -config /etc/localembed/config.yaml
 Restart=on-failure
 StandardOutput=append:/var/log/localembed/server.log
 StandardError=append:/var/log/localembed/server.log

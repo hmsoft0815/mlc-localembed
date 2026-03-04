@@ -43,7 +43,7 @@ install_macos() {
     mkdir -p "$BIN_DIR" "$LIB_DIR" "$VAR_DIR" "$LOG_DIR" "$PLIST_DIR"
     
     echo "Building binaries..."
-    GOWORK=off go build -o "$BIN_DIR/localembed-server" ./cmd/server/main.go
+    GOWORK=off go build -o "$BIN_DIR/mlcembedder" ./cmd/server/main.go
     GOWORK=off go build -o "$BIN_DIR/localembed-cli" ./cmd/cli/main.go
     GOWORK=off go build -o "$BIN_DIR/localembed-preloader" ./cmd/preloader/main.go
     

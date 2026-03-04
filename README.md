@@ -118,7 +118,7 @@ export HF_TOKEN=your_token_here
 ### 2. Server (`bin/server`)
 Starts the Ollama-compatible API server.
 ```bash
-./bin/server
+./bin/mlcembedder
 ```
 The server will be available at `http://localhost:9142` (default).
 
@@ -158,7 +158,7 @@ curl -X POST http://localhost:9142/api/test/similarity \
 1. Download the binary for your platform.
 2. Ensure `libonnxruntime.so` (or `.dylib`/`.dll`) is in your library path or next to the binary.
 3. Run `./bin/preloader` to download models.
-4. Run `./bin/server`.
+4. Run `./bin/mlcembedder`.
 
 ### RPM Installation (Linux / RHEL / AlmaLinux / Fedora)
 We provide RPM packages for easy installation on Enterprise Linux systems.

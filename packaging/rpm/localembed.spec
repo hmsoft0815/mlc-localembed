@@ -20,7 +20,7 @@ It uses ONNX runtime for high-performance inference on local hardware.
 %build
 # Build all binaries
 mkdir -p bin
-GOWORK=off go build -o bin/localembed-server ./cmd/server/main.go
+GOWORK=off go build -o bin/mlcembedder ./cmd/server/main.go
 GOWORK=off go build -o bin/localembed-cli ./cmd/cli/main.go
 GOWORK=off go build -o bin/localembed-preloader ./cmd/preloader/main.go
 
@@ -35,7 +35,7 @@ mkdir -p %{buildroot}%{_libdir}/localembed
 mkdir -p %{buildroot}%{_mandir}/man1
 
 # Binaries
-install -m 0755 bin/localembed-server %{buildroot}%{_bindir}/localembed-server
+install -m 0755 bin/mlcembedder %{buildroot}%{_bindir}/mlcembedder
 install -m 0755 bin/localembed-cli %{buildroot}%{_bindir}/localembed-cli
 install -m 0755 bin/localembed-preloader %{buildroot}%{_bindir}/localembed-preloader
 
@@ -74,7 +74,7 @@ exit 0
 %systemd_postun_with_restart localembed.service
 
 %files
-%{_bindir}/localembed-server
+%{_bindir}/mlcembedder
 %{_bindir}/localembed-cli
 %{_bindir}/localembed-preloader
 %{_libdir}/localembed/libonnxruntime.so
@@ -82,7 +82,7 @@ exit 0
 %config(noreplace) %{_sysconfdir}/localembed/config.yaml
 %{_unitdir}/localembed.service
 %{_sysconfdir}/logrotate.d/localembed
-%{_mandir}/man1/localembed-server.1.gz
+%{_mandir}/man1/mlcembedder.1.gz
 %{_mandir}/man1/localembed-cli.1.gz
 %dir %attr(0750, localembed, localembed) %{_sharedstatedir}/localembed
 %dir %attr(0750, localembed, localembed) %{_sharedstatedir}/localembed/mlcembed

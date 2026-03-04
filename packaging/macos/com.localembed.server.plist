@@ -6,7 +6,7 @@
     <string>com.localembed.server</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/local/bin/localembed-server</string>
+        <string>/usr/local/bin/mlcembedder</string>
     </array>
     <key>RunAtLoad</key>
     <true/>

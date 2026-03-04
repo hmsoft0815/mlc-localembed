@@ -83,10 +83,10 @@ export HF_TOKEN=ihr_token_hier
 ./bin/preloader
 ```
 
-### 2. Server (`bin/server`)
+### 2. Server (`bin/mlcembedder`)
 Startet den Ollama-kompatiblen API-Server.
 ```bash
-./bin/server
+./bin/mlcembedder
 ```
 Der Server ist standardmäßig unter `http://localhost:9142` erreichbar.
 
