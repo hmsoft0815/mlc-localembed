@@ -133,7 +133,17 @@ func main() {
 	r.GET("/api/ps", handler.HandlePs)
 	r.POST("/api/show", handler.HandleShow)
 	r.GET("/api/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok", "version": api.Version})
+		c.JSON(200, gin.H{
+			"status":  "ok",
+			"version": "0.17.4",
+			"via":     fmt.Sprintf("mlc-localembed %s", api.Version),
+		})
+	})
+	r.GET("/api/version", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"version": "0.17.4",
+			"via":     fmt.Sprintf("mlc-localembed %s", api.Version),
+		})
 	})
 	r.GET("/api/stats", handler.HandleStats)
 	r.POST("/api/embed/faker", handler.HandleEmbedFaker)
