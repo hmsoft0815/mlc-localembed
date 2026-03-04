@@ -347,3 +347,9 @@ func (h *Handler) HandleSimilarity(c *gin.Context) {
 func (h *Handler) HandleStats(c *gin.Context) {
 	c.JSON(http.StatusOK, h.stats.GetStats())
 }
+
+func (h *Handler) HandleGenerate(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{
+		"error": "This is an embedding-only server. Chat and text generation are not supported.",
+	})
+}

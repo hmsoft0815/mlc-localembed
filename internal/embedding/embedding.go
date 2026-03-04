@@ -39,14 +39,26 @@ func findOnnxRuntime() string {
 		libName,
 		filepath.Join("..", libName),
 		filepath.Join("bin", libName),
+		// RPM standard paths
+		filepath.Join("/usr/lib64/localembed", libName),
+		filepath.Join("/usr/lib/localembed", libName),
+		"/usr/local/lib/" + libName,
 	}
 
-	// Add absolute path for development environment if it exists
-	devPath := "/mnt/data2tb/mlcmcp/mcp-proxy/toolrag/localembed"
-	searchPaths = append(searchPaths, filepath.Join(devPath, libName))
+	// Add relative path from binary directory
+	if exePath, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exePath)
+		// Check if lib is next to binary or in ../lib/localembed (typical for RPM)
+		searchPaths = append(searchPaths, filepath.Join(exeDir, libName))
+		searchPaths = append(searchPaths, filepath.Join(exeDir, "..", "lib64", "localembed", libName))
+		searchPaths = append(searchPaths, filepath.Join(exeDir, "..", "lib", "localembed", libName))
+	}
 
 	for _, p := range searchPaths {
 		if _, err := os.Stat(p); err == nil {
+			if absPath, err := filepath.Abs(p); err == nil {
+				return absPath
+			}
 			return p
 		}
 	}
@@ -368,13 +380,28 @@ if interThreads > 0 {
 	attentionMask := make([]int64, maxLen)
 	tokenTypeIds := make([]int64, maxLen)
 
-	t1, _ := ort.NewTensor(inputShape, inputIds)
-	t2, _ := ort.NewTensor(inputShape, attentionMask)
-	t3, _ := ort.NewTensor(inputShape, tokenTypeIds)
+	t1, err := ort.NewTensor(inputShape, inputIds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create input_ids tensor: %w", err)
+	}
+	t2, err := ort.NewTensor(inputShape, attentionMask)
+	if err != nil {
+		t1.Destroy()
+		return nil, fmt.Errorf("failed to create attention_mask tensor: %w", err)
+	}
+	t3, err := ort.NewTensor(inputShape, tokenTypeIds)
+	if err != nil {
+		t1.Destroy(); t2.Destroy()
+		return nil, fmt.Errorf("failed to create token_type_ids tensor: %w", err)
+	}
 
 	outputShape := ort.NewShape(1, int64(maxLen), int64(dim))
 	outputData := make([]float32, 1*maxLen*dim)
-	tOut, _ := ort.NewTensor(outputShape, outputData)
+	tOut, err := ort.NewTensor(outputShape, outputData)
+	if err != nil {
+		t1.Destroy(); t2.Destroy(); t3.Destroy()
+		return nil, fmt.Errorf("failed to create output tensor: %w", err)
+	}
 
 	// 4. Create Session
 	session, err := ort.NewAdvancedSession(

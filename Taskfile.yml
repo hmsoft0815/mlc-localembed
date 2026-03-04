@@ -158,3 +158,30 @@ tasks:
     desc: Remove binaries
     cmds:
       - rm -rf bin
+
+  rpm:
+    desc: Build RPM package (requires rpmbuild)
+    cmds:
+      - task: build
+      - mkdir -p build/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+      - |
+        VERSION=$(grep "const Version =" internal/api/version.go | cut -d'"' -f2 | sed 's/v//')
+        NAME=localembed
+        STAGING=build/staging/$NAME-$VERSION
+        mkdir -p $STAGING
+        # Copy source and binaries to staging
+        cp -r cmd internal go.mod go.sum LICENSE README.md config.yaml packaging scripts $STAGING/
+        mkdir -p $STAGING/bin
+        cp bin/* $STAGING/bin/
+        cp libonnxruntime.so $STAGING/
+        # Do not include large models in default RPM
+        # Create empty directory for spec to find if needed, or just let spec handle it
+        mkdir -p $STAGING/mlcembed
+        # Create tarball
+        TARBALL=$NAME-$VERSION.tar.gz
+        tar -czf build/rpmbuild/SOURCES/$TARBALL -C build/staging $NAME-$VERSION
+      - cp packaging/rpm/localembed.spec build/rpmbuild/SPECS/
+      - rpmbuild --define "_topdir $(pwd)/build/rpmbuild" -ba build/rpmbuild/SPECS/localembed.spec
+
+
+
