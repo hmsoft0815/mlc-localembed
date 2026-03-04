@@ -1,0 +1,14 @@
+# Large model artifacts
+mlcembed/fast-bge-small-en-v1.5/
+mlcembed/models--nomic-ai--nomic-embed-text-v1.5/
+mlcembed/models--qdrant--multilingual-e5-small/
+mlcembed/models--BAAI--bge-small-en-v1.5/
+mlcembed/models--Xenova--bge-small-en-v1.5/
+
+# Build artifacts
+build/
+bin/
+.git/
+*.tgz
+server.log
+server.pid

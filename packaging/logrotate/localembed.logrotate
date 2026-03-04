@@ -1,0 +1,12 @@
+/var/log/localembed/*.log {
+    weekly
+    rotate 4
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 localembed localembed
+    postrotate
+        /usr/bin/systemctl reload localembed > /dev/null 2>/dev/null || true
+    endscript
+}

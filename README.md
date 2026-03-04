@@ -132,10 +132,12 @@ A simple tool to test embeddings directly from the command line.
 
 ## API Endpoints
 
-- `POST /api/embed`: Generate embeddings for one or more strings (Ollama compatible).
+- `POST /api/embed`: Generate embeddings for one or more strings (Modern Ollama compatible).
+- `POST /api/embeddings`: Legacy Ollama/OpenAI compatible endpoint. Supports `prompt` field and returns `embedding` (singular) for single inputs.
+- `POST /api/generate`: Returns `501 Not Implemented`. This server only supports embeddings, but providing this endpoint prevents some clients from crashing.
 - `GET /api/tags`: List available and enabled models (Ollama compatible).
 - `GET /api/health`: Basic health check (returns version and status).
-- `GET /api/stats`: **(New in v0.3.0)** Returns usage statistics (request counts, uptime, average processing time per model).
+- `GET /api/stats`: Returns usage statistics (request counts, uptime, average processing time per model).
 - `POST /api/test/similarity`: Directly compare a query against multiple documents to get semantic similarity scores.
 
 ### Similarity API Example
@@ -149,6 +151,41 @@ curl -X POST http://localhost:9142/api/test/similarity \
     "documents": ["Paris is the capital.", "Berlin is in Germany.", "The sun is a star."]
   }'
 ```
+
+## Installation
+
+### Binary Installation (Manual)
+1. Download the binary for your platform.
+2. Ensure `libonnxruntime.so` (or `.dylib`/`.dll`) is in your library path or next to the binary.
+3. Run `./bin/preloader` to download models.
+4. Run `./bin/server`.
+
+### RPM Installation (Linux / RHEL / AlmaLinux / Fedora)
+We provide RPM packages for easy installation on Enterprise Linux systems.
+
+```bash
+# 1. Build the RPM (requires rpm-build and task)
+task rpm
+
+# 2. Install the RPM
+sudo dnf install build/rpmbuild/RPMS/x86_64/localembed-*.rpm
+
+# 3. Start and enable the service
+sudo systemctl enable --now localembed
+
+# 4. (Optional) Preload models as the localembed user
+sudo -u localembed localembed-preloader
+```
+
+**RPM Features:**
+- **Systemd Integration**: Runs as a background service.
+- **Dedicated User**: Runs under the `localembed` service user for better security.
+- **Standard Paths**:
+  - Binaries: `/usr/bin/localembed-server`, `/usr/bin/localembed-cli`
+  - Libraries: `/usr/lib64/localembed/libonnxruntime.so`
+  - Config: `/etc/localembed/config.yaml`
+  - Cache: `/var/cache/localembed/mlcembed`
+- **Logging**: Integration with `journalctl`.
 
 ## Testing
 

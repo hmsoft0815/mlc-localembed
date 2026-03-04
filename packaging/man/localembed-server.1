@@ -1,0 +1,35 @@
+.TH LOCALEMBED-SERVER 1 "2026-03-03" "v1.0.2" "MLC LocalEmbed"
+.SH NAME
+localembed-server \- Fast Local Text Embedding Service
+.SH SYNOPSIS
+.B localembed-server
+[\fIOPTIONS\fR]
+.SH DESCRIPTION
+.B localembed-server
+provides an OpenAI-compatible embedding API using fast ONNX-based models. It runs locally and supports multiple embedding models.
+.SH OPTIONS
+By default, configuration is loaded from /etc/localembed/config.yaml.
+.SH FILES
+.TP
+.I /etc/localembed/config.yaml
+Configuration file.
+.TP
+.I /var/lib/localembed
+Default data directory for models.
+.TP
+.I /var/log/localembed/server.log
+Log file.
+.SH ENVIRONMENT
+.TP
+.B MLC_PORT
+Port to listen on (default: 9142).
+.TP
+.B MLC_CACHE_DIR
+Directory where models are stored.
+.TP
+.B ONNX_PATH
+Path to libonnxruntime.so.
+.SH SEE ALSO
+.B localembed-cli(1)
+.SH AUTHOR
+Michael Lechner

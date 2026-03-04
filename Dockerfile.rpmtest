@@ -1,0 +1,60 @@
+FROM almalinux:9
+
+# 1. Install build and test dependencies
+RUN dnf install -y --allowerasing \
+    golang \
+    rpm-build \
+    git \
+    tar \
+    gzip \
+    make \
+    curl \
+    jq \
+    procps-ng \
+    man-db \
+    && dnf clean all
+
+# 2. Install Task (go-task)
+RUN go install github.com/go-task/task/v3/cmd/task@latest
+ENV PATH="/root/go/bin:${PATH}"
+
+# 3. Prepare workspace
+WORKDIR /src
+COPY . .
+
+# 4. Run Go unit tests before packaging
+RUN echo "--- Running Go Tests ---" && \
+    task test
+
+# 5. Build the RPM
+RUN echo "--- Building RPM ---" && \
+    task rpm
+
+# 6. Install the resulting RPM
+RUN echo "--- Installing RPM ---" && \
+    dnf install -y build/rpmbuild/RPMS/x86_64/localembed-*.rpm
+
+# 7. Verification of file structure
+RUN echo "--- Verifying Files ---" && \
+    ls -l /usr/bin/localembed-server && \
+    ls -l /usr/bin/localembed-cli && \
+    ls -l /usr/lib64/localembed/libonnxruntime.so && \
+    ls -l /etc/localembed/config.yaml
+
+# 8. Integration Test: Run server and execute curl tests
+# Since we don't have a model in the RPM, we'll use a "faker" or mock 
+# if the tests support it, or we copy one small model for the test phase.
+RUN echo "--- Running Integration Tests ---" && \
+    # Start server in background
+    localembed-server > /tmp/server.log 2>&1 & \
+    # Wait for server to be ready
+    sleep 3 && \
+    # Run curl tests
+    (curl -v -s http://localhost:9142/api/health | jq .) || (cat /tmp/server.log && exit 1) && \
+    # Clean up
+    pkill localembed-server || true
+
+# 9. Check Man Pages
+RUN man -w localembed-server && man -w localembed-cli
+
+CMD ["/bin/bash"]

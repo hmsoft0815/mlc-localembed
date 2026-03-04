@@ -1,0 +1,39 @@
+# MLC LocalEmbed Configuration Template
+# This file is located at /etc/localembed/config.yaml
+
+server:
+  port: 9142
+  log_level: "info"
+  # Maximum number of concurrent embedding requests
+  max_concurrency: 4
+
+storage:
+  # Where models are stored. For RPM installation, this is /var/lib/localembed/models
+  cache_dir: "/var/lib/localembed/models"
+  # If true, the server will try to download missing models from HuggingFace.
+  # Set to false for air-gapped systems.
+  allow_offline_download: false
+
+onnx:
+  # Threads used for internal ONNX operations
+  intra_op_num_threads: 4
+  inter_op_num_threads: 4
+
+models:
+  # The model to use if no specific model is requested in the API call
+  default: "fast-multilingual-e5-small"
+  
+  # List of available models. 
+  # To add a model, copy its files to /var/lib/localembed/models/<name>/
+  available:
+    - name: "fast-multilingual-e5-small"
+      description: "Fast multilingual embedding (Required files must be in /var/lib/localembed/models/fast-multilingual-e5-small/)"
+      dim: 384
+      query_prefix: "query: "
+      document_prefix: "passage: "
+      enabled: true
+
+    - name: "all-minilm"
+      description: "Small and fast symmetric embedding"
+      dim: 384
+      enabled: false

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.localembed.server</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/localembed-server</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/usr/local/var/log/localembed.log</string>
+    <key>StandardErrorPath</key>
+    <string>/usr/local/var/log/localembed.log</string>
+    <key>WorkingDirectory</key>
+    <string>/usr/local/var/localembed</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>MLC_CACHE_DIR</key>
+        <string>/usr/local/var/localembed/mlcembed</string>
+        <key>ONNX_PATH</key>
+        <string>/usr/local/lib/libonnxruntime.dylib</string>
+    </dict>
+</dict>
+</plist>

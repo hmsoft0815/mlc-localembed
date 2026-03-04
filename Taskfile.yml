@@ -168,20 +168,35 @@ tasks:
         VERSION=$(grep "const Version =" internal/api/version.go | cut -d'"' -f2 | sed 's/v//')
         NAME=localembed
         STAGING=build/staging/$NAME-$VERSION
+        rm -rf $STAGING
         mkdir -p $STAGING
         # Copy source and binaries to staging
         cp -r cmd internal go.mod go.sum LICENSE README.md config.yaml packaging scripts $STAGING/
         mkdir -p $STAGING/bin
         cp bin/* $STAGING/bin/
-        cp libonnxruntime.so $STAGING/
-        # Do not include large models in default RPM
-        # Create empty directory for spec to find if needed, or just let spec handle it
+        # Check for library - if it doesn't exist, we might be in a dev env without it yet
+        if [ -f libonnxruntime.so ]; then cp libonnxruntime.so $STAGING/; fi
+        
+        # Create empty directory for models
         mkdir -p $STAGING/mlcembed
+        
         # Create tarball
         TARBALL=$NAME-$VERSION.tar.gz
         tar -czf build/rpmbuild/SOURCES/$TARBALL -C build/staging $NAME-$VERSION
       - cp packaging/rpm/localembed.spec build/rpmbuild/SPECS/
       - rpmbuild --define "_topdir $(pwd)/build/rpmbuild" -ba build/rpmbuild/SPECS/localembed.spec
+      - echo "RPM build complete. Packages available in build/rpmbuild/RPMS/"
+
+  rpm-test:
+    desc: Run RPM build and installation test in Docker
+    cmds:
+      - docker build -t localembed-rpmtest -f Dockerfile.rpmtest .
+
+  install:
+    desc: Run the cross-platform installer script
+    cmds:
+      - chmod +x scripts/install.sh
+      - ./scripts/install.sh
 
 
 
