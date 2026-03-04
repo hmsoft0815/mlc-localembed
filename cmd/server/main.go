@@ -31,6 +31,7 @@ func printBanner(version string) {
 `
 	fmt.Print(banner)
 	fmt.Printf(" [ Local Embedding Engine | %s ]\n", version)
+	fmt.Println(" [ MIT License | Written by Michael Lechner ]")
 	fmt.Println(" ------------------------------------------------")
 }
 
