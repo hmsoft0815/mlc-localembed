@@ -12,9 +12,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"gopkg.in/yaml.v3"
 	"mlc-localembed/internal/api"
 	"mlc-localembed/internal/embedding"
-	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
@@ -22,7 +22,7 @@ type Config struct {
 		CacheDir string `yaml:"cache_dir"`
 	} `yaml:"storage"`
 	Models struct {
-		Default   string           `yaml:"default"`
+		Default   string            `yaml:"default"`
 		Available []api.ConfigModel `yaml:"available"`
 	} `yaml:"models"`
 }
@@ -111,7 +111,7 @@ func runEmbed(manager *embedding.Manager, model, text string) {
 
 func runMigrate(manager *embedding.Manager, model api.ConfigModel, dataDir, outputDir string) {
 	manifestPath := filepath.Join(outputDir, "manifest.json")
-	
+
 	// 1. Automatic Detection
 	fmt.Printf("Checking for model mismatch in %s...\n", outputDir)
 	manifest, err := api.LoadManifest(manifestPath)
@@ -134,7 +134,7 @@ func runMigrate(manager *embedding.Manager, model api.ConfigModel, dataDir, outp
 	}
 
 	os.MkdirAll(outputDir, 0755)
-	
+
 	results := make(map[string][]float32)
 	for _, f := range files {
 		if f.IsDir() || !filepath.HasPrefix(f.Name(), ".") && (filepath.Ext(f.Name()) == ".md" || filepath.Ext(f.Name()) == ".txt") {

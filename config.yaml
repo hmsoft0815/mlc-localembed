@@ -1,6 +1,8 @@
 server:
   port: 9142
   log_level: "info"
+  max_concurrency: 4
+  lru_cache_size: 10
 
 storage:
   cache_dir: "./mlcembed"

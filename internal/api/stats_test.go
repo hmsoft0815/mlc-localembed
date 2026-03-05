@@ -40,7 +40,7 @@ func TestStatsCollector(t *testing.T) {
 
 func TestStatsCollector_MultiModel(t *testing.T) {
 	s := NewStatsCollector()
-	
+
 	s.RecordRequest("model-A", 100*time.Millisecond)
 	s.RecordRequest("model-B", 200*time.Millisecond)
 	s.RecordRequest("model-A", 300*time.Millisecond)
@@ -56,10 +56,10 @@ func TestStatsCollector_MultiModel(t *testing.T) {
 func TestStatsCollector_Concurrency(t *testing.T) {
 	s := NewStatsCollector()
 	var wg sync.WaitGroup
-	
+
 	numRoutines := 10
 	requestsPerRoutine := 100
-	
+
 	for i := 0; i < numRoutines; i++ {
 		wg.Add(1)
 		go func(id int) {
@@ -73,13 +73,13 @@ func TestStatsCollector_Concurrency(t *testing.T) {
 			}
 		}(i)
 	}
-	
+
 	wg.Wait()
-	
+
 	stats := s.GetStats()
 	expectedTotal := int64(numRoutines * requestsPerRoutine)
 	assert.Equal(t, expectedTotal, stats.TotalRequests)
-	
+
 	// Total for specific models should also be correct
 	countConcurrent := stats.Models["model-concurrent"].RequestCount
 	countEven := stats.Models["model-even"].RequestCount

@@ -24,14 +24,24 @@ import (
 const ollamaVersion = "0.17.4"
 
 func printBanner(version string) {
-	banner := `
-    __                     __                     __              __
-   / /   ____  _________ _/ /__  ____ ___  ____  / /_  ___  ____/ /
-  / /   / __ \/ ___/ __ ` + "`" + `/ / _ \/ __ ` + "`" + `__ \/ __ \/ __ \/ _ \/ __  / 
- / /___/ /_/ / /__/ /_/ / /  __/ / / / / / /_/ / /_/ /  __/ /_/ /  
-/_____/\____/\___/\__,_/_/\___/_/ /_/ /_ /_.___/_.___/\___/\__,_/   
-`
-	fmt.Print(banner)
+	green  := "\033[38;2;0;255;0m"
+	orange := "\033[38;2;255;165;0m"
+	red    := "\033[38;2;255;0;0m"
+	reset  := "\033[0m"
+
+	// stupid games here ;)
+	line1 := `  _                 _ _____           _              _ `
+	line2 := ` | | ___   ___ __ _| | ____|_ __ ___ | |__   ___  __| |`
+	line3 := ` | |/ _ \ / __/ _` + "`" + ` | |  _| | '_ ` + "`" + ` _ \| '_ \ / _ \/ _` + "`" + ` |`
+	line4 := ` | | (_) | (_| (_| | | |___| | | | | | |_)  | __/ (_| |`
+	line5 := ` |_|\___/ \__\__,__|_|_____|_| |_| |_|_.__/ \___|\__,_|`
+
+	fmt.Println(green + line1 + reset)
+	fmt.Println(green + line2 + reset)
+	fmt.Println(orange + line3 + reset)
+	fmt.Println(red + line4 + reset)
+	fmt.Println(red + line5 + reset)
+
 	fmt.Printf(" [ Local Embedding Engine | %s ]\n", version)
 	fmt.Println(" [ MIT License | Written by Michael Lechner ]")
 	fmt.Println(" ------------------------------------------------")
@@ -44,6 +54,7 @@ func printHelp() {
 	fmt.Println("  -port <int>           Port to listen on (default: 9142)")
 	fmt.Println("  -cache-dir <path>     Directory to store models (default: ./mlcembed)")
 	fmt.Println("  -concurrency <int>    Max concurrent requests (default: 4)")
+	fmt.Println("  -lru-cache-size <int> Max items in embedding cache (default: 10, 0 to disable)")
 	fmt.Println("  -log-level <string>   Log level: info, debug (default: info)")
 	fmt.Println("  -h, --help            Show this help message")
 	fmt.Println("\nConfiguration Priority:")
@@ -59,6 +70,7 @@ func printHelp() {
 	fmt.Println("  MLC_INTRA_THREADS     ONNX Intra-op threads")
 	fmt.Println("  MLC_INTER_THREADS     ONNX Inter-op threads")
 	fmt.Println("  MLC_DEFAULT_MODEL     Default model name to use")
+	fmt.Println("  MLC_LRU_CACHE         Matches -lru-cache-size")
 	fmt.Println("")
 }
 
@@ -67,6 +79,7 @@ type Config struct {
 		Port           int    `yaml:"port"`
 		LogLevel       string `yaml:"log_level"`
 		MaxConcurrency int    `yaml:"max_concurrency"`
+		LRUCacheSize   *int   `yaml:"lru_cache_size"`
 	} `yaml:"server"`
 	Storage struct {
 		CacheDir string `yaml:"cache_dir"`
@@ -87,6 +100,7 @@ func main() {
 	portFlag := flag.Int("port", 0, "Port to listen on")
 	cacheDirFlag := flag.String("cache-dir", "", "Directory to store models")
 	concurrencyFlag := flag.Int("concurrency", 0, "Max concurrent requests")
+	lruCacheSizeFlag := flag.Int("lru-cache-size", -1, "LRU cache size")
 	logLevelFlag := flag.String("log-level", "", "Log level (info, debug)")
 	helpFlag := flag.Bool("help", false, "Show help")
 	hFlag := flag.Bool("h", false, "Show help")
@@ -144,6 +158,12 @@ func main() {
 	if val := os.Getenv("MLC_DEFAULT_MODEL"); val != "" {
 		config.Models.Default = val
 	}
+	if val := os.Getenv("MLC_LRU_CACHE"); val != "" {
+		var size int
+		if _, err := fmt.Sscanf(val, "%d", &size); err == nil {
+			config.Server.LRUCacheSize = &size
+		}
+	}
 
 	// 3. Override with Flags (if provided)
 	if *portFlag != 0 {
@@ -154,6 +174,9 @@ func main() {
 	}
 	if *concurrencyFlag != 0 {
 		config.Server.MaxConcurrency = *concurrencyFlag
+	}
+	if *lruCacheSizeFlag != -1 {
+		config.Server.LRUCacheSize = lruCacheSizeFlag
 	}
 	if *logLevelFlag != "" {
 		config.Server.LogLevel = *logLevelFlag
@@ -166,6 +189,10 @@ func main() {
 	if config.Server.MaxConcurrency == 0 {
 		config.Server.MaxConcurrency = 4
 	}
+	if config.Server.LRUCacheSize == nil {
+		ten := 10
+		config.Server.LRUCacheSize = &ten
+	}
 	if config.Storage.CacheDir == "" {
 		config.Storage.CacheDir = "./mlcembed"
 	}
@@ -173,6 +200,7 @@ func main() {
 	// 4. Initialize embedding manager
 	manager := embedding.NewManager(config.Storage.CacheDir)
 	manager.SetOnnxOptions(config.Onnx.IntraOpNumThreads, config.Onnx.InterOpNumThreads)
+	manager.SetLRUCache(*config.Server.LRUCacheSize)
 
 	// Filter available models based on config and apply custom settings
 	var availableModels []api.ConfigModel

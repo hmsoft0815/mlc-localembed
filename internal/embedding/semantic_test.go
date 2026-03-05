@@ -63,7 +63,7 @@ func TestSemanticSimilarity(t *testing.T) {
 	// 3. Assertions
 	assert.Greater(t, simA, simB, "A (Paris) should be more similar to query than B (Weather)")
 	assert.Greater(t, simC, simB, "C (Paris Gov) should be more similar to query than B (Weather)")
-	
+
 	// C is often even more similar than A due to the word 'government'
 	assert.Greater(t, simC, float32(0.8), "High similarity expected for semantically identical content")
 }

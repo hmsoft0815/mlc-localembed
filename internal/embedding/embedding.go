@@ -196,15 +196,16 @@ func (e *CustomEmbedder) Close() error {
 
 // Manager handles multiple models
 type Manager struct {
-	cacheDir          string
-	models            map[string]Embedder
-	mu                sync.RWMutex
+	cacheDir         string
+	models           map[string]Embedder
+	mu               sync.RWMutex
 	onnxIntraThreads int
 	onnxInterThreads int
 	configFiles      map[string]string // model name -> custom filename
 	configDims       map[string]int    // model name -> dimension
 	poolingConfigs   map[string]string // model name -> pooling strategy
 	aliases          map[string]string // alias -> primary name
+	lruCache         *LRUCache
 }
 
 func NewManager(cacheDir string) *Manager {
@@ -226,6 +227,16 @@ func NewManager(cacheDir string) *Manager {
 		configDims:     make(map[string]int),
 		poolingConfigs: make(map[string]string),
 		aliases:        make(map[string]string),
+	}
+}
+
+func (m *Manager) SetLRUCache(size int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if size > 0 {
+		m.lruCache = NewLRUCache(size)
+	} else {
+		m.lruCache = nil
 	}
 }
 
@@ -337,7 +348,6 @@ func (m *Manager) GetEmbedder(requestedName string) (Embedder, error) {
 	return newEmb, nil
 }
 
-
 func NewCustomEmbedderWithFile(modelPath, onnxPath string, dim int, intraThreads, interThreads int) (*CustomEmbedder, error) {
 	// 1. Load Tokenizer
 	tk, err := pretrained.FromFile(filepath.Join(modelPath, "tokenizer.json"))
@@ -365,14 +375,12 @@ func NewCustomEmbedderWithFile(modelPath, onnxPath string, dim int, intraThreads
 		return nil, fmt.Errorf("failed to create session options: %w", err)
 	}
 	defer options.Destroy()
-if intraThreads > 0 {
-	options.SetIntraOpNumThreads(intraThreads)
-}
-if interThreads > 0 {
-	options.SetInterOpNumThreads(interThreads)
-}
-
-
+	if intraThreads > 0 {
+		options.SetIntraOpNumThreads(intraThreads)
+	}
+	if interThreads > 0 {
+		options.SetInterOpNumThreads(interThreads)
+	}
 
 	// 3. Prepare pre-allocated buffers
 	inputShape := ort.NewShape(1, int64(maxLen))
@@ -391,7 +399,8 @@ if interThreads > 0 {
 	}
 	t3, err := ort.NewTensor(inputShape, tokenTypeIds)
 	if err != nil {
-		t1.Destroy(); t2.Destroy()
+		t1.Destroy()
+		t2.Destroy()
 		return nil, fmt.Errorf("failed to create token_type_ids tensor: %w", err)
 	}
 
@@ -399,7 +408,9 @@ if interThreads > 0 {
 	outputData := make([]float32, 1*maxLen*dim)
 	tOut, err := ort.NewTensor(outputShape, outputData)
 	if err != nil {
-		t1.Destroy(); t2.Destroy(); t3.Destroy()
+		t1.Destroy()
+		t2.Destroy()
+		t3.Destroy()
 		return nil, fmt.Errorf("failed to create output tensor: %w", err)
 	}
 
@@ -428,7 +439,10 @@ if interThreads > 0 {
 	}
 
 	if err != nil {
-		t1.Destroy(); t2.Destroy(); t3.Destroy(); tOut.Destroy()
+		t1.Destroy()
+		t2.Destroy()
+		t3.Destroy()
+		tOut.Destroy()
 		return nil, fmt.Errorf("failed to create session for %s: %w", onnxPath, err)
 	}
 	session := tempSession
@@ -451,12 +465,50 @@ func NewCustomEmbedder(modelPath string, dim int, intraThreads, interThreads int
 	return NewCustomEmbedderWithFile(modelPath, filepath.Join(modelPath, "model.onnx"), dim, intraThreads, interThreads)
 }
 
-func (m *Manager) Embed(name string, docs []string) ([][]float32, error) {
+func (m *Manager) Embed(requestedName string, docs []string) ([][]float32, error) {
+	name := m.resolveName(requestedName)
 	emb, err := m.GetEmbedder(name)
 	if err != nil {
 		return nil, err
 	}
-	return emb.Embed(docs)
+
+	results := make([][]float32, len(docs))
+	var toEmbed []string
+	var toEmbedIndices []int
+
+	m.mu.RLock()
+	cache := m.lruCache
+	m.mu.RUnlock()
+
+	for i, doc := range docs {
+		if cache != nil {
+			key := name + ":" + doc
+			if val, ok := cache.Get(key); ok {
+				results[i] = val
+				continue
+			}
+		}
+		toEmbed = append(toEmbed, doc)
+		toEmbedIndices = append(toEmbedIndices, i)
+	}
+
+	if len(toEmbed) > 0 {
+		embedded, err := emb.Embed(toEmbed)
+		if err != nil {
+			return nil, err
+		}
+
+		for i, val := range embedded {
+			origIdx := toEmbedIndices[i]
+			results[origIdx] = val
+			if cache != nil {
+				key := name + ":" + toEmbed[i]
+				cache.Add(key, val)
+			}
+		}
+	}
+
+	return results, nil
 }
 
 func (m *Manager) Close() {

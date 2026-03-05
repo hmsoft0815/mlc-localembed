@@ -9,10 +9,10 @@ import (
 )
 
 type StatsCollector struct {
-	mu           sync.RWMutex
-	StartTime    time.Time
+	mu            sync.RWMutex
+	StartTime     time.Time
 	TotalRequests int64
-	ModelStats   map[string]*ModelMetrics
+	ModelStats    map[string]*ModelMetrics
 }
 
 type ModelMetrics struct {

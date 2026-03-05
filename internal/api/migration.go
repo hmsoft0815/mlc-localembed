@@ -18,7 +18,7 @@ import (
 // It returns true if a migration was performed, false if skip was successful.
 func RunMigration(manager *embedding.Manager, model ConfigModel, dataDir, outputDir string) (bool, error) {
 	manifestPath := filepath.Join(outputDir, "manifest.json")
-	
+
 	// 1. Check for mismatch
 	manifest, err := LoadManifest(manifestPath)
 	if err == nil {
@@ -41,7 +41,7 @@ func RunMigration(manager *embedding.Manager, model ConfigModel, dataDir, output
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return false, fmt.Errorf("failed to create output directory %s: %w", outputDir, err)
 	}
-	
+
 	results := make(map[string][]float32)
 	count := 0
 	for _, f := range files {

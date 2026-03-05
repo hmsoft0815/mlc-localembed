@@ -56,6 +56,7 @@ Settings are managed via `config.yaml` or environment variables (which take prec
 | `MLC_PORT` | Server port | `9142` |
 | `MLC_LOG_LEVEL` | Log level (`info`, `debug`) | `info` |
 | `MLC_MAX_CONCURRENCY` | Global concurrent request limit | `4` |
+| `MLC_LRU_CACHE` | Embedding cache size (items) | `10` |
 | `MLC_CACHE_DIR` | Path to model cache | `./mlcembed` |
 | `MLC_INTRA_THREADS` | ONNX intra-op threads | From config |
 | `MLC_INTER_THREADS` | ONNX inter-op threads | From config |
@@ -67,6 +68,8 @@ Settings are managed via `config.yaml` or environment variables (which take prec
 server:
   port: 9142
   log_level: "info"
+  max_concurrency: 4
+  lru_cache_size: 10 # Cache generated embeddings (0 to disable)
 
 storage:
   cache_dir: "./mlcembed"

@@ -10,7 +10,7 @@ jobs:
   test:
     name: Test and Build
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -44,4 +44,4 @@ jobs:
           CGO_ENABLED=1 go build -v -o bin/mlcembedder${EXT} ./cmd/server/main.go
           go build -v -o bin/preloader ./cmd/preloader/main.go
           go build -v -o bin/cli ./cmd/cli/main.go
-```
+

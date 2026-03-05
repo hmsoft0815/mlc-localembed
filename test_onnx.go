@@ -13,7 +13,7 @@ import (
 func main() {
 	onnxPath := os.Getenv("ONNX_PATH")
 	fmt.Printf("Testing ONNX_PATH: %s\n", onnxPath)
-	
+
 	ort.SetSharedLibraryPath(onnxPath)
 	err := ort.InitializeEnvironment()
 	if err != nil {

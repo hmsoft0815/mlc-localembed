@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"mlc-localembed/internal/embedding"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"mlc-localembed/internal/embedding"
 )
 
 func TestHandleTags(t *testing.T) {
