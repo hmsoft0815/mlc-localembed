@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-03-13
+
+### Added
+- **GPU Acceleration**: Optional support for ONNX Runtime Execution Providers.
+- Platform auto-detection: CoreML (macOS), CUDA (Linux), DirectML (Windows).
+- New configuration options: `use_gpu` and `execution_provider` in `config.yaml`.
+- Command-line flags `-gpu` and `-gpu-ep` for server and CLI.
+- Environment variables `MLC_USE_GPU` and `MLC_GPU_EP`.
+- Graceful fallback to CPU if GPU initialization fails.
+
 ## [1.0.2] - 2026-03-03
 
 ### Changed

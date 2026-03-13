@@ -11,6 +11,8 @@ storage:
 onnx:
   intra_op_num_threads: 4
   inter_op_num_threads: 4
+  use_gpu: false # Set to true to enable GPU acceleration
+  # execution_provider: "coreml" # Options: cuda, coreml, directml, tensorrt
 
 migration:
   data_dir: "./docs"

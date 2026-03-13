@@ -21,6 +21,12 @@ type Config struct {
 	Storage struct {
 		CacheDir string `yaml:"cache_dir"`
 	} `yaml:"storage"`
+	Onnx struct {
+		IntraOpNumThreads int    `yaml:"intra_op_num_threads"`
+		InterOpNumThreads int    `yaml:"inter_op_num_threads"`
+		UseGPU            bool   `yaml:"use_gpu"`
+		ExecutionProvider string `yaml:"execution_provider"`
+	} `yaml:"onnx"`
 	Models struct {
 		Default   string            `yaml:"default"`
 		Available []api.ConfigModel `yaml:"available"`
@@ -33,6 +39,8 @@ func main() {
 	model := flag.String("model", "", "Model to use")
 	dataDir := flag.String("data", "./data", "Directory containing source markdown files for migration")
 	outputDir := flag.String("out", "./embeddings", "Output directory for embeddings")
+	gpu := flag.Bool("gpu", false, "Enable GPU acceleration")
+	gpuEP := flag.String("gpu-ep", "", "Force specific GPU execution provider")
 	flag.Parse()
 
 	// 1. Load config
@@ -43,14 +51,11 @@ func main() {
 		}
 	}
 
-	configFile, err := os.ReadFile(configPath)
-	if err != nil {
-		log.Fatalf("failed to read %s: %v", configPath, err)
-	}
-
 	var config Config
-	if err := yaml.Unmarshal(configFile, &config); err != nil {
-		log.Fatalf("failed to parse config: %v", err)
+	if configFile, err := os.ReadFile(configPath); err == nil {
+		if err := yaml.Unmarshal(configFile, &config); err != nil {
+			log.Fatalf("failed to parse config: %v", err)
+		}
 	}
 
 	if *model == "" {
@@ -60,6 +65,17 @@ func main() {
 	// 2. Initialize embedding manager
 	manager := embedding.NewManager(config.Storage.CacheDir)
 	defer manager.Close()
+
+	if config.Onnx.IntraOpNumThreads > 0 || config.Onnx.InterOpNumThreads > 0 {
+		manager.SetOnnxOptions(config.Onnx.IntraOpNumThreads, config.Onnx.InterOpNumThreads)
+	}
+
+	useGPU := config.Onnx.UseGPU || *gpu
+	ep := config.Onnx.ExecutionProvider
+	if *gpuEP != "" {
+		ep = *gpuEP
+	}
+	manager.SetGPU(useGPU, ep)
 
 	// Configure custom model settings
 	var selectedModel api.ConfigModel

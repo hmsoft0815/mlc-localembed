@@ -56,6 +56,8 @@ func printHelp() {
 	fmt.Println("  -concurrency <int>    Max concurrent requests (default: 4)")
 	fmt.Println("  -lru-cache-size <int> Max items in embedding cache (default: 10, 0 to disable)")
 	fmt.Println("  -log-level <string>   Log level: info, debug (default: info)")
+	fmt.Println("  -gpu                  Enable GPU acceleration (auto-detect provider)")
+	fmt.Println("  -gpu-ep <string>      Force specific GPU execution provider (cuda, coreml, directml, tensorrt)")
 	fmt.Println("  -h, --help            Show this help message")
 	fmt.Println("\nConfiguration Priority:")
 	fmt.Println("  1. Command-line flags (highest)")
@@ -69,6 +71,8 @@ func printHelp() {
 	fmt.Println("  MLC_CACHE_DIR         Matches -cache-dir")
 	fmt.Println("  MLC_INTRA_THREADS     ONNX Intra-op threads")
 	fmt.Println("  MLC_INTER_THREADS     ONNX Inter-op threads")
+	fmt.Println("  MLC_USE_GPU           Enable GPU acceleration (true/false)")
+	fmt.Println("  MLC_GPU_EP            Specific GPU execution provider")
 	fmt.Println("  MLC_DEFAULT_MODEL     Default model name to use")
 	fmt.Println("  MLC_LRU_CACHE         Matches -lru-cache-size")
 	fmt.Println("")
@@ -85,8 +89,10 @@ type Config struct {
 		CacheDir string `yaml:"cache_dir"`
 	} `yaml:"storage"`
 	Onnx struct {
-		IntraOpNumThreads int `yaml:"intra_op_num_threads"`
-		InterOpNumThreads int `yaml:"inter_op_num_threads"`
+		IntraOpNumThreads int    `yaml:"intra_op_num_threads"`
+		InterOpNumThreads int    `yaml:"inter_op_num_threads"`
+		UseGPU            bool   `yaml:"use_gpu"`
+		ExecutionProvider string `yaml:"execution_provider"`
 	} `yaml:"onnx"`
 	Models struct {
 		Default   string            `yaml:"default"`
@@ -102,6 +108,8 @@ func main() {
 	concurrencyFlag := flag.Int("concurrency", 0, "Max concurrent requests")
 	lruCacheSizeFlag := flag.Int("lru-cache-size", -1, "LRU cache size")
 	logLevelFlag := flag.String("log-level", "", "Log level (info, debug)")
+	gpuFlag := flag.Bool("gpu", false, "Enable GPU acceleration")
+	gpuEPFlag := flag.String("gpu-ep", "", "Execution provider (cuda, coreml, directml, tensorrt)")
 	helpFlag := flag.Bool("help", false, "Show help")
 	hFlag := flag.Bool("h", false, "Show help")
 
@@ -155,6 +163,12 @@ func main() {
 	if val := os.Getenv("MLC_INTER_THREADS"); val != "" {
 		fmt.Sscanf(val, "%d", &config.Onnx.InterOpNumThreads)
 	}
+	if val := os.Getenv("MLC_USE_GPU"); val != "" {
+		config.Onnx.UseGPU = (val == "true" || val == "1")
+	}
+	if val := os.Getenv("MLC_GPU_EP"); val != "" {
+		config.Onnx.ExecutionProvider = val
+	}
 	if val := os.Getenv("MLC_DEFAULT_MODEL"); val != "" {
 		config.Models.Default = val
 	}
@@ -181,6 +195,12 @@ func main() {
 	if *logLevelFlag != "" {
 		config.Server.LogLevel = *logLevelFlag
 	}
+	if *gpuFlag {
+		config.Onnx.UseGPU = true
+	}
+	if *gpuEPFlag != "" {
+		config.Onnx.ExecutionProvider = *gpuEPFlag
+	}
 
 	// Set defaults if still zero
 	if config.Server.Port == 0 {
@@ -200,6 +220,7 @@ func main() {
 	// 4. Initialize embedding manager
 	manager := embedding.NewManager(config.Storage.CacheDir)
 	manager.SetOnnxOptions(config.Onnx.IntraOpNumThreads, config.Onnx.InterOpNumThreads)
+	manager.SetGPU(config.Onnx.UseGPU, config.Onnx.ExecutionProvider)
 	manager.SetLRUCache(*config.Server.LRUCacheSize)
 
 	// Filter available models based on config and apply custom settings

@@ -201,6 +201,8 @@ type Manager struct {
 	mu               sync.RWMutex
 	onnxIntraThreads int
 	onnxInterThreads int
+	useGPU           bool
+	gpuEP            string            // specific EP if desired: "cuda", "coreml", "tensorrt", "directml"
 	configFiles      map[string]string // model name -> custom filename
 	configDims       map[string]int    // model name -> dimension
 	poolingConfigs   map[string]string // model name -> pooling strategy
@@ -228,6 +230,13 @@ func NewManager(cacheDir string) *Manager {
 		poolingConfigs: make(map[string]string),
 		aliases:        make(map[string]string),
 	}
+}
+
+func (m *Manager) SetGPU(useGPU bool, ep string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.useGPU = useGPU
+	m.gpuEP = strings.ToLower(ep)
 }
 
 func (m *Manager) SetLRUCache(size int) {
@@ -282,6 +291,8 @@ func (m *Manager) GetEmbedder(requestedName string) (Embedder, error) {
 	emb, ok := m.models[name]
 	intra := m.onnxIntraThreads
 	inter := m.onnxInterThreads
+	useGPU := m.useGPU
+	gpuEP := m.gpuEP
 	customFile := m.configFiles[name]
 	dim := m.configDims[name]
 	pooling := m.poolingConfigs[name]
@@ -335,7 +346,7 @@ func (m *Manager) GetEmbedder(requestedName string) (Embedder, error) {
 
 	fullOnnxPath := filepath.Join(path, onnxFile)
 
-	newEmb, err := NewCustomEmbedderWithFile(path, fullOnnxPath, dim, intra, inter)
+	newEmb, err := NewCustomEmbedderWithFile(path, fullOnnxPath, dim, intra, inter, useGPU, gpuEP)
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +359,7 @@ func (m *Manager) GetEmbedder(requestedName string) (Embedder, error) {
 	return newEmb, nil
 }
 
-func NewCustomEmbedderWithFile(modelPath, onnxPath string, dim int, intraThreads, interThreads int) (*CustomEmbedder, error) {
+func NewCustomEmbedderWithFile(modelPath, onnxPath string, dim int, intraThreads, interThreads int, useGPU bool, gpuEP string) (*CustomEmbedder, error) {
 	// 1. Load Tokenizer
 	tk, err := pretrained.FromFile(filepath.Join(modelPath, "tokenizer.json"))
 	if err != nil {
@@ -380,6 +391,47 @@ func NewCustomEmbedderWithFile(modelPath, onnxPath string, dim int, intraThreads
 	}
 	if interThreads > 0 {
 		options.SetInterOpNumThreads(interThreads)
+	}
+
+	// GPU Acceleration
+	if useGPU {
+		ep := gpuEP
+		if ep == "" {
+			// Auto-detect based on platform
+			switch runtime.GOOS {
+			case "darwin":
+				ep = "coreml"
+			case "windows":
+				ep = "directml"
+			default:
+				ep = "cuda"
+			}
+		}
+
+		switch ep {
+		case "coreml":
+			// 0 = default flags
+			err = options.AppendExecutionProviderCoreML(0)
+		case "cuda":
+			// We can pass default CUDA options
+			cudaOptions, _ := ort.NewCUDAProviderOptions()
+			defer cudaOptions.Destroy()
+			err = options.AppendExecutionProviderCUDA(cudaOptions)
+		case "tensorrt":
+			trtOptions, _ := ort.NewTensorRTProviderOptions()
+			defer trtOptions.Destroy()
+			err = options.AppendExecutionProviderTensorRT(trtOptions)
+		case "directml":
+			err = options.AppendExecutionProviderDirectML(0)
+		default:
+			err = fmt.Errorf("unsupported execution provider: %s", ep)
+		}
+
+		if err != nil {
+			fmt.Printf("Warning: Failed to enable GPU acceleration (%s): %v. Falling back to CPU.\n", ep, err)
+		} else {
+			fmt.Printf("Enabled GPU acceleration using %s provider\n", ep)
+		}
 	}
 
 	// 3. Prepare pre-allocated buffers
@@ -461,8 +513,8 @@ func NewCustomEmbedderWithFile(modelPath, onnxPath string, dim int, intraThreads
 	}, nil
 }
 
-func NewCustomEmbedder(modelPath string, dim int, intraThreads, interThreads int) (*CustomEmbedder, error) {
-	return NewCustomEmbedderWithFile(modelPath, filepath.Join(modelPath, "model.onnx"), dim, intraThreads, interThreads)
+func NewCustomEmbedder(modelPath string, dim int, intraThreads, interThreads int, useGPU bool, gpuEP string) (*CustomEmbedder, error) {
+	return NewCustomEmbedderWithFile(modelPath, filepath.Join(modelPath, "model.onnx"), dim, intraThreads, interThreads, useGPU, gpuEP)
 }
 
 func (m *Manager) Embed(requestedName string, docs []string) ([][]float32, error) {
