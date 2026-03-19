@@ -26,6 +26,13 @@ tasks:
     cmds:
       - task --list
 
+  setup:
+    desc: Complete initial setup (Download ONNX, Build, Preload models)
+    cmds:
+      - task: download-onnx
+      - task: build
+      - task: preload
+
   build:
     desc: Build all binaries
     env:

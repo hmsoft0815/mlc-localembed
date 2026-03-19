@@ -45,6 +45,19 @@ This should not be a problem on modern hardware (e.g. M1 etc) - but be warned, o
 - **Network Isolation**: 100% air-gapped runtime once models are preloaded.
 - **Monitoring**: Built-in statistics and health endpoints for production usage.
 
+## Installation Layout (Standard Paths)
+
+To provide a clean system integration, the application follows these platform-specific conventions:
+
+| Component | Linux (RPM) | macOS (Installer) | Windows (Portable) |
+| :--- | :--- | :--- | :--- |
+| **Binaries** | `/usr/bin/mlcembedder` | `/usr/local/bin/` | `C:\Program Files\LocalEmbed\` |
+| **Configuration** | `/etc/localembed/config.yaml` | `/usr/local/etc/localembed/` | `C:\ProgramData\LocalEmbed\config.yaml` |
+| **Models Cache** | `/var/lib/localembed/mlcembed` | `~/Library/Application Support/localembed/models` | `C:\ProgramData\LocalEmbed\models` |
+| **ONNX Library** | `/usr/lib64/localembed/` | `/usr/local/lib/` | Application directory |
+
+The server automatically looks for the configuration file in these locations if no `-config` flag is provided.
+
 ## Configuration
 
 Settings are managed via `config.yaml` or environment variables (which take precedence).

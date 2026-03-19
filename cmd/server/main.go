@@ -122,13 +122,21 @@ func main() {
 
 	printBanner(api.Version)
 
-	// 1. Resolve Config Path and Load file
+	// --- 1. Resolve Config Path ---
 	configPath := *configPathFlag
 	if configPath == "config.yaml" {
-		// If using default, check current and parent dir
-		if _, err := os.Stat(configPath); os.IsNotExist(err) {
-			if _, err := os.Stat("../config.yaml"); err == nil {
-				configPath = "../config.yaml"
+		// Intelligent default path search
+		paths := []string{
+			"./config.yaml",                             // Local (dev)
+			"../config.yaml",                            // Relative (bin/mlcembedder)
+			"/etc/localembed/config.yaml",               // Linux/Mac Global
+			"/usr/local/etc/localembed/config.yaml",      // Mac Homebrew style
+			os.Getenv("PROGRAMDATA") + `\LocalEmbed\config.yaml`, // Windows Global
+		}
+		for _, p := range paths {
+			if _, err := os.Stat(p); err == nil {
+				configPath = p
+				break
 			}
 		}
 	}
@@ -141,10 +149,11 @@ func main() {
 	} else if *configPathFlag != "config.yaml" {
 		log.Fatalf("failed to read config file at %s: %v", configPath, err)
 	} else {
-		log.Printf("warning: %s not found, using defaults, env, and flags", configPath)
+		log.Printf("warning: config file not found, using defaults, env, and flags")
 	}
 
 	// 2. Override with Environment Variables
+	// (rest of overrides ...)
 	if val := os.Getenv("MLC_PORT"); val != "" {
 		fmt.Sscanf(val, "%d", &config.Server.Port)
 	}
@@ -214,8 +223,24 @@ func main() {
 		config.Server.LRUCacheSize = &ten
 	}
 	if config.Storage.CacheDir == "" {
-		config.Storage.CacheDir = "./mlcembed"
+		// Platform specific model cache defaults
+		switch os.Getenv("GOOS") {
+		case "windows":
+			config.Storage.CacheDir = os.Getenv("PROGRAMDATA") + `\LocalEmbed\models`
+		case "darwin":
+			home, _ := os.UserHomeDir()
+			config.Storage.CacheDir = home + "/Library/Application Support/localembed/models"
+		default: // Linux
+			if _, err := os.Stat("/var/lib/localembed/mlcembed"); err == nil {
+				config.Storage.CacheDir = "/var/lib/localembed/mlcembed"
+			} else {
+				config.Storage.CacheDir = "./mlcembed"
+			}
+		}
 	}
+
+	// --- NEW: Bootstrap Checks ---
+	checkEnvironment(config.Storage.CacheDir)
 
 	// 4. Initialize embedding manager
 	manager := embedding.NewManager(config.Storage.CacheDir)
@@ -305,4 +330,57 @@ func main() {
 	manager.Close()
 
 	log.Println("Server exiting")
+}
+
+func checkEnvironment(cacheDir string) {
+	// 1. Check for ONNX Library
+	libFound := false
+	onnxPath := os.Getenv("ONNX_PATH")
+	if onnxPath != "" {
+		if _, err := os.Stat(onnxPath); err == nil {
+			libFound = true
+		}
+	} else {
+		// Check common names in current dir and system-wide paths
+		libs := []string{
+			"libonnxruntime.so", "libonnxruntime.dylib", "onnxruntime.dll", // Local
+			"/usr/lib/localembed/libonnxruntime.so",                        // Linux Global
+			"/usr/local/lib/libonnxruntime.so",                             // Linux/Mac Global
+			"/usr/local/lib/libonnxruntime.dylib",                          // Mac Global
+		}
+		for _, lib := range libs {
+			if _, err := os.Stat(lib); err == nil {
+				libFound = true
+				break
+			}
+		}
+	}
+
+	if !libFound {
+		fmt.Println("\n \033[31m⚠️  ERROR: ONNX Runtime library not found!\033[0m")
+		fmt.Println(" Please download it using:")
+		fmt.Println("   task download-onnx")
+		fmt.Println(" Or set the ONNX_PATH environment variable.")
+		fmt.Println("")
+		os.Exit(1)
+	}
+
+	// 2. Check for Models
+	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
+		fmt.Printf("\n \033[33m⚠️  WARNING: Model directory '%s' does not exist!\033[0m\n", cacheDir)
+		fmt.Println(" Please download models before starting the server:")
+		fmt.Println("   task preload")
+		fmt.Println("")
+		os.Exit(1)
+	}
+
+	// Check if directory is empty
+	files, err := os.ReadDir(cacheDir)
+	if err != nil || len(files) == 0 {
+		fmt.Printf("\n \033[33m⚠️  WARNING: No models found in '%s'!\033[0m\n", cacheDir)
+		fmt.Println(" Please run the preloader to download models:")
+		fmt.Println("   task preload")
+		fmt.Println("")
+		os.Exit(1)
+	}
 }
