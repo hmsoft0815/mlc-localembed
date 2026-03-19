@@ -86,8 +86,6 @@ release-artifacts:
   tags:
     - linux
     - build
-  only:
-    - tags
   dependencies:
     - build-linux
     - build-macos
