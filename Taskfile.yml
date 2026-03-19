@@ -42,6 +42,11 @@ tasks:
       - go build -o bin/mlcembedder ./cmd/server/main.go
       - go build -o bin/cli ./cmd/cli/main.go
       - go build -o bin/preloader ./cmd/preloader/main.go
+      - |
+        if [ "$(uname)" == "Linux" ] || [ "$(uname)" == "Darwin" ]; then
+          # Build Windows GUI (requires cross-compile support if on Linux)
+          GOOS=windows GOARCH=amd64 go build -o bin/localembed-gui.exe ./cmd/gui-win/main.go || echo "Skipping Windows GUI build"
+        fi
 
   test:
     desc: Run tests
