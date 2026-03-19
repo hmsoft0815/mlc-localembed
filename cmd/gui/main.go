@@ -24,6 +24,7 @@ func main() {
 }
 
 func onReady() {
+	systray.SetIcon(iconData)
 	systray.SetTitle("LocalEmbed")
 	systray.SetTooltip("Local Text Embedding Engine Manager")
 
