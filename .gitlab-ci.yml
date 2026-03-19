@@ -90,7 +90,7 @@ build-windows-cross:
     - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o bin/mlcembedder.exe ./cmd/server/main.go
     - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o bin/cli.exe ./cmd/cli/main.go
     - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o bin/preloader.exe ./cmd/preloader/main.go
-    - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -ldflags="-H windowsgui" -o bin/localembed-gui.exe ./cmd/gui/main.go
+    - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -ldflags="-H windowsgui" -o bin/localembed-gui.exe ./cmd/gui
     - mkdir -p bin-windows
     - cp bin/*.exe bin-windows/
   artifacts:

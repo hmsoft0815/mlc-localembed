@@ -46,10 +46,10 @@ tasks:
         # Build Unified GUI (macOS/Windows)
         if [ "$(uname)" == "Linux" ]; then
           # Cross-compile for Windows
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -ldflags="-H windowsgui" -o bin/localembed-gui.exe ./cmd/gui/main.go || echo "Windows GUI build failed"
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -ldflags="-H windowsgui" -o bin/localembed-gui.exe ./cmd/gui || echo "Windows GUI build failed"
         elif [ "$(uname)" == "Darwin" ]; then
           # Native build for macOS
-          go build -o bin/localembed-gui ./cmd/gui/main.go
+          go build -o bin/localembed-gui ./cmd/gui
         fi
 
   clean:
