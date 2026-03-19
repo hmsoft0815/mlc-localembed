@@ -166,6 +166,12 @@ tasks:
           curl -L $URL -o onnx.tgz
           tar -xzf onnx.tgz -C .onnx_tmp --strip-components 1
           cp .onnx_tmp/lib/libonnxruntime.so.1.17.0 ./libonnxruntime.so
+        elif [ "$OS" == "windows" ] || [ "$OS" == "win32" ]; then
+          URL="https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-win-x64-1.17.0.zip"
+          curl -L $URL -o onnx.zip
+          unzip -o onnx.zip -d .onnx_tmp
+          cp .onnx_tmp/onnxruntime-win-x64-1.17.0/lib/onnxruntime.dll ./onnxruntime.dll
+          rm -f onnx.zip
         fi
         rm -rf onnx.tgz .onnx_tmp
 

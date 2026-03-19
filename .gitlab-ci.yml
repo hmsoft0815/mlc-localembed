@@ -86,9 +86,10 @@ build-windows-cross:
     - windows-cross
   script:
     - echo "Building for Windows (Cross-Compile)..."
-    # Basic tools
-    - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc task build
-    # Windows GUI (Using the unified GUI code in cmd/gui/main.go)
+    # Build all components explicitly for Windows with .exe extension
+    - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o bin/mlcembedder.exe ./cmd/server/main.go
+    - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o bin/cli.exe ./cmd/cli/main.go
+    - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o bin/preloader.exe ./cmd/preloader/main.go
     - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o bin/localembed-gui.exe ./cmd/gui/main.go
     - mkdir -p bin-windows
     - cp bin/*.exe bin-windows/
@@ -141,7 +142,8 @@ release-artifacts:
     - task download-onnx PLATFORM=darwin
     - tar -czf release_pkgs/localembed-macos-arm64.tar.gz bin-macos/mlcembedder bin-macos/cli bin-macos/preloader libonnxruntime.dylib LICENSE README.md config.yaml
     # Pack Windows
-    - zip -r release_pkgs/localembed-windows-amd64.zip bin-windows/*.exe LICENSE README.md config.yaml
+    - task download-onnx PLATFORM=windows
+    - zip -j release_pkgs/localembed-windows-amd64.zip bin-windows/*.exe onnxruntime.dll LICENSE README.md config.yaml
   artifacts:
     paths:
       - release_pkgs/
