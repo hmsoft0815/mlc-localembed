@@ -77,7 +77,10 @@ test-macos:
   dependencies:
     - build-macos
   script:
+    - chmod -R +w $GOPATH/pkg/mod || true
     - task test
+  after_script:
+    - chmod -R +w $GOPATH/pkg/mod || true
 
 release-artifacts:
   stage: release
