@@ -4,12 +4,12 @@ stages:
   - release
 
 variables:
-  GOPATH: $CI_PROJECT_DIR/.go
+  GOPATH: $CI_BUILDS_DIR/go
   GOWORK: "off"
+  GOFLAGS: "-modcacherw"
 
 cache:
   paths:
-    - .go/pkg/mod
     - bin/
 
 .base_task:
