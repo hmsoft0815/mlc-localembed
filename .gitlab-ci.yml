@@ -1,0 +1,101 @@
+stages:
+  - build
+  - test
+  - release
+
+variables:
+  GOPATH: $CI_PROJECT_DIR/.go
+  GOWORK: "off"
+
+cache:
+  paths:
+    - .go/pkg/mod
+    - bin/
+
+.base_task:
+  before_script:
+    - |
+      if ! command -v task >/dev/null 2>&1; then
+        echo "Installing go-task..."
+        go install github.com/go-task/task/v3/cmd/task@latest
+        export PATH=$PATH:$(go env GOPATH)/bin
+      fi
+
+build-linux:
+  stage: build
+  extends: .base_task
+  tags:
+    - linux
+    - build
+  script:
+    - task download-onnx
+    - task build
+  artifacts:
+    paths:
+      - bin/
+      - libonnxruntime.so
+
+build-macos:
+  stage: build
+  extends: .base_task
+  tags:
+    - macos
+  script:
+    - task download-onnx
+    - task build
+  artifacts:
+    paths:
+      - bin/
+      - libonnxruntime.dylib
+
+build-windows-cross:
+  stage: build
+  extends: .base_task
+  tags:
+    - windows-cross
+  script:
+    - echo "Building for Windows (Cross-Compile)..."
+    - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc task build
+  artifacts:
+    paths:
+      - bin/*.exe
+  allow_failure: true # Da Cross-Compile für Windows mit CGO oft zusätzliche Libs braucht
+
+test-linux:
+  stage: test
+  extends: .base_task
+  tags:
+    - linux
+  dependencies:
+    - build-linux
+  script:
+    - task test
+
+test-macos:
+  stage: test
+  extends: .base_task
+  tags:
+    - macos
+  dependencies:
+    - build-macos
+  script:
+    - task test
+
+release-artifacts:
+  stage: release
+  tags:
+    - linux
+    - build
+  only:
+    - tags
+  dependencies:
+    - build-linux
+    - build-macos
+    - build-windows-cross
+  script:
+    - mkdir -p release_pkgs
+    - tar -czf release_pkgs/localembed-linux-amd64.tar.gz bin/mlcembedder bin/cli bin/preloader libonnxruntime.so LICENSE README.md config.yaml
+    - tar -czf release_pkgs/localembed-macos-arm64.tar.gz bin/mlcembedder bin/cli bin/preloader libonnxruntime.dylib LICENSE README.md config.yaml
+  artifacts:
+    paths:
+      - release_pkgs/

@@ -18,7 +18,13 @@ vars:
 tasks:
   default:
     cmds:
-      - task: build
+      - task: help
+
+  help:
+    desc: List all available tasks
+    silent: true
+    cmds:
+      - task --list
 
   build:
     desc: Build all binaries
