@@ -6,13 +6,11 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"syscall"
 	"time"
 
 	"github.com/getlantern/systray"
@@ -108,35 +106,6 @@ func checkHealth() bool {
 	}
 	defer resp.Body.Close()
 	return resp.StatusCode == http.StatusOK
-}
-
-func startServer(state *AppState) {
-	binaryName := "mlcembedder"
-	if runtime.GOOS == "windows" {
-		binaryName += ".exe"
-	}
-
-	foundPath := filepath.Join(state.BaseDir, binaryName)
-	if _, err := os.Stat(foundPath); err != nil {
-		// Fallback to relative
-		foundPath = "./" + binaryName
-	}
-
-	logFile := filepath.Join(state.BaseDir, "server.log")
-
-	if runtime.GOOS == "windows" {
-		// Windows specific: Start without window and redirect output
-		// We use cmd /C to handle the redirection correctly
-		cmdLine := fmt.Sprintf("start /B %s > \"%s\" 2>&1", binaryName, logFile)
-		cmd := exec.Command("cmd", "/C", cmdLine)
-		cmd.Dir = state.BaseDir
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-		cmd.Run()
-	} else {
-		cmd := exec.Command(foundPath)
-		cmd.Dir = state.BaseDir
-		cmd.Start()
-	}
 }
 
 func stopServer() {
