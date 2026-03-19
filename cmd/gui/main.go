@@ -6,10 +6,13 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/getlantern/systray"
@@ -19,11 +22,24 @@ const (
 	apiURL = "http://localhost:9142/api/health"
 )
 
+type AppState struct {
+	IsServerReachable bool
+	BaseDir           string
+}
+
 func main() {
 	systray.Run(onReady, onExit)
 }
 
 func onReady() {
+	exePath, _ := os.Executable()
+	baseDir := filepath.Dir(exePath)
+	
+	state := &AppState{
+		IsServerReachable: false,
+		BaseDir:           baseDir,
+	}
+
 	systray.SetIcon(iconData)
 	systray.SetTitle("LocalEmbed")
 	systray.SetTooltip("Local Text Embedding Engine Manager")
@@ -47,14 +63,17 @@ func onReady() {
 		ticker := time.NewTicker(5 * time.Second)
 		for {
 			isOnline := checkHealth()
-			if isOnline {
-				mStatus.SetTitle("🟢 API Online")
-				mStart.Hide()
-				mStop.Show()
-			} else {
-				mStatus.SetTitle("🔴 Offline / Loading")
-				mStart.Show()
-				mStop.Hide()
+			if isOnline != state.IsServerReachable {
+				state.IsServerReachable = isOnline
+				if isOnline {
+					mStatus.SetTitle("🟢 API Online")
+					mStart.Hide()
+					mStop.Show()
+				} else {
+					mStatus.SetTitle("🔴 Offline / Loading")
+					mStart.Show()
+					mStop.Hide()
+				}
 			}
 			<-ticker.C
 		}
@@ -64,13 +83,13 @@ func onReady() {
 	for {
 		select {
 		case <-mStart.ClickedCh:
-			startServer()
+			startServer(state)
 		case <-mStop.ClickedCh:
 			stopServer()
 		case <-mDownload.ClickedCh:
-			runPreloader()
+			runPreloader(state)
 		case <-mLogs.ClickedCh:
-			openLogs()
+			openLogs(state)
 		case <-mQuit.ClickedCh:
 			systray.Quit()
 			return
@@ -79,7 +98,6 @@ func onReady() {
 }
 
 func onExit() {
-	// Cleanup if needed
 }
 
 func checkHealth() bool {
@@ -92,30 +110,32 @@ func checkHealth() bool {
 	return resp.StatusCode == http.StatusOK
 }
 
-func startServer() {
+func startServer(state *AppState) {
 	binaryName := "mlcembedder"
 	if runtime.GOOS == "windows" {
 		binaryName += ".exe"
 	}
 
-	paths := []string{"./" + binaryName, "../MacOS/" + binaryName, "/usr/local/bin/" + binaryName}
-	var foundPath string
-	for _, p := range paths {
-		if _, err := os.Stat(p); err == nil {
-			foundPath = p
-			break
-		}
+	foundPath := filepath.Join(state.BaseDir, binaryName)
+	if _, err := os.Stat(foundPath); err != nil {
+		// Fallback to relative
+		foundPath = "./" + binaryName
 	}
 
-	if foundPath == "" {
-		foundPath = binaryName // Fallback to PATH
-	}
+	logFile := filepath.Join(state.BaseDir, "server.log")
 
 	if runtime.GOOS == "windows" {
-		// Run in background and redirect to log
-		exec.Command("cmd", "/C", "start /B " + foundPath + " > server.log 2>&1").Run()
+		// Windows specific: Start without window and redirect output
+		// We use cmd /C to handle the redirection correctly
+		cmdLine := fmt.Sprintf("start /B %s > \"%s\" 2>&1", binaryName, logFile)
+		cmd := exec.Command("cmd", "/C", cmdLine)
+		cmd.Dir = state.BaseDir
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		cmd.Run()
 	} else {
-		exec.Command(foundPath).Start()
+		cmd := exec.Command(foundPath)
+		cmd.Dir = state.BaseDir
+		cmd.Start()
 	}
 }
 
@@ -127,20 +147,28 @@ func stopServer() {
 	}
 }
 
-func runPreloader() {
+func runPreloader(state *AppState) {
 	if runtime.GOOS == "darwin" {
 		script := "tell application \"Terminal\" to do script \"/usr/local/bin/localembed-preloader\""
 		exec.Command("osascript", "-e", script).Run()
 	} else if runtime.GOOS == "windows" {
-		// Fixed: Use preloader.exe instead of localembed-preloader.exe
-		exec.Command("cmd", "/C", "start preloader.exe").Run()
+		preloader := filepath.Join(state.BaseDir, "preloader.exe")
+		// Start in a new visible console window
+		exec.Command("cmd", "/C", "start", preloader).Run()
 	}
 }
 
-func openLogs() {
+func openLogs(state *AppState) {
+	logFile := filepath.Join(state.BaseDir, "server.log")
+	
+	// Create empty log if not exists to prevent "file not found" errors
+	if _, err := os.Stat(logFile); os.IsNotExist(err) {
+		os.WriteFile(logFile, []byte("--- LocalEmbed Log Started ---\n"), 0644)
+	}
+
 	if runtime.GOOS == "darwin" {
-		exec.Command("open", "/usr/local/var/log/localembed.log").Run()
+		exec.Command("open", logFile).Run()
 	} else if runtime.GOOS == "windows" {
-		exec.Command("cmd", "/C", "start", "server.log").Run()
+		exec.Command("cmd", "/C", "start", "notepad.exe", logFile).Run()
 	}
 }
