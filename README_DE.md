@@ -10,6 +10,28 @@
 
 LocalEmbed ist ein leistungsstarker Go-basierter Dienst zur Erzeugung von Texteinbettungen (Embeddings) unter Verwendung der ONNX-Runtime. Es bietet eine Ollama-kompatible API zur einfachen Integration in bestehende AI-Workflows.
 
+## Plattform-Unterstützung
+
+LocalEmbed läuft nahezu überall:
+- **macOS**: Native Unterstützung für Apple Silicon (M1, M2, M3, M4, M5) und Intel Macs.
+- **Windows**: Volle Unterstützung mit einer speziellen System-Tray-Anwendung zur einfachen Verwaltung.
+- **Linux**: Getestet auf Ubuntu Server (x64), aber kompatibel mit den meisten modernen Distributionen.
+
+## Hardware & Performance
+
+### CPU-First Strategie
+Standardmäßig nutzt LocalEmbed **ausschließlich die CPU**. Für die meisten Embedding-Modelle (wie BGE oder E5) sind moderne CPUs mehr als schnell genug, um Latenzen im Sub-Millisekundenbereich zu liefern. Dies erlaubt den Betrieb auf fast jeder Hardware – von modernen MacBooks bis hin zu ausgedienten Servern oder günstigen Mini-PCs – ohne teure GPUs oder komplexe Treiberinstallationen.
+
+### Optionale GPU-Beschleunigung
+Obwohl die CPU der Standard ist, kann die GPU-Beschleunigung (CUDA, CoreML, DirectML) über die `config.yaml` oder Kommandozeilenparameter aktiviert werden, sofern Ihre Hardware dies unterstützt.
+
+## Benutzeroberfläche (GUI)
+
+Unter **Windows** und **macOS** enthält LocalEmbed eine leichtgewichtige **System-Tray-Anwendung**.
+- **Einfache Verwaltung**: Starten und Stoppen des Servers mit einem Klick aus der Taskleiste/Menüleiste.
+- **Statusüberwachung**: Sehen Sie auf einen Blick, ob die API online (🟢) oder offline (🔴) ist.
+- **Integrierte Werkzeuge**: Schneller Zugriff auf Server-Logs und den Modell-Downloader (Preloader).
+
 ## Motivation
 
 Das Hauptziel von LocalEmbed ist es, eine **kosteneffiziente und effiziente Infrastruktur** für AI-Anwendungen bereitzustellen. Während leistungsstarke Dienste wie Ollama oder kommerzielle APIs hervorragend für den Betrieb großer Sprachmodelle (LLMs) wie Gemma, Llama oder GPT-4 geeignet sind, kann deren Nutzung für umfangreiche Embedding-Aufgaben teuer sein oder unnötige Latenzen verursachen.
@@ -26,7 +48,7 @@ Dies sollte auf moderner Hardware (z.B. M1 etc.) kein Problem sein – aber seie
 ## Features
 
 - **Schnell & Leichtgewichtig**: Entwickelt in Go mit ONNX Runtime für minimalen Overhead.
-- **Ollama-kompatibel**: Unterstützt `/api/embed` und `/api/tags` Endpunkte.
+- **Ollama & OpenAI kompatibel**: Unterstützt `/api/embed` (Ollama) und `/api/embeddings` (OpenAI/Legacy Ollama) Endpunkte.
 - **Konfigurierbar**: Modelle und Runtime-Einstellungen lassen sich einfach über YAML verwalten.
 - **Ressourcen-Management**: Integrierter Schutz für Multi-Core-Systeme (Xeon Freeze-Schutz).
 - **Netzwerk-Isolation**: 100% Air-Gapped Laufzeit, sobald die Modelle vorgeladen sind.
@@ -100,7 +122,8 @@ Ein einfaches Werkzeug, um Embeddings direkt über die Kommandozeile zu testen.
 
 ## API Endpunkte
 
-- `POST /api/embed`: Erzeugt Embeddings für einen oder mehrere Strings (Ollama-kompatibel).
+- `POST /api/embed`: Erzeugt Embeddings für einen oder mehrere Strings (Moderne Ollama-Kompatibilität).
+- `POST /api/embeddings`: **OpenAI & Legacy Ollama kompatibler** Endpunkt. Er unterstützt das `prompt`-Feld und liefert ein standardisiertes OpenAI-Antwortformat, was ihn zu einem direkten Ersatz für viele bestehende KI-Tools macht.
 - `GET /api/tags`: Listet verfügbare und aktivierte Modelle auf (Ollama-kompatibel).
 - `GET /api/health`: Einfacher Gesundheitscheck (gibt Status und Version zurück).
 - `GET /api/stats`: **(Neu in v0.3.0)** Gibt Nutzungsstatistiken zurück (Anzahl der Anfragen, Uptime, durchschnittliche Verarbeitungszeit pro Modell).
