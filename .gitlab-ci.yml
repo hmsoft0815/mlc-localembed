@@ -33,7 +33,6 @@ build-linux:
   artifacts:
     paths:
       - bin/
-      - libonnxruntime.so
 
 build-macos:
   stage: build
@@ -46,7 +45,6 @@ build-macos:
   artifacts:
     paths:
       - bin/
-      - libonnxruntime.dylib
 
 build-windows-cross:
   stage: build
@@ -92,6 +90,7 @@ release-artifacts:
     - build-windows-cross
   script:
     - mkdir -p release_pkgs
+    - task download-onnx # Sicherstellen, dass die Lib da ist
     - tar -czf release_pkgs/localembed-linux-amd64.tar.gz bin/mlcembedder bin/cli bin/preloader libonnxruntime.so LICENSE README.md config.yaml
     - tar -czf release_pkgs/localembed-macos-arm64.tar.gz bin/mlcembedder bin/cli bin/preloader libonnxruntime.dylib LICENSE README.md config.yaml
   artifacts:
