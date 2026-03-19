@@ -205,6 +205,12 @@ tasks:
     cmds:
       - docker build -t localembed-rpmtest -f Dockerfile.rpmtest .
 
+  package-macos:
+    desc: Create macOS App Bundle and DMG
+    cmds:
+      - chmod +x scripts/build_macos_dmg.sh
+      - ./scripts/build_macos_dmg.sh
+
   install:
     desc: Run the cross-platform installer script
     cmds:
