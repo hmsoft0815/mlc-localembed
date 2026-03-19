@@ -111,7 +111,8 @@ func startServer() {
 	}
 
 	if runtime.GOOS == "windows" {
-		exec.Command("cmd", "/C", "start", foundPath).Run()
+		// Run in background and redirect to log
+		exec.Command("cmd", "/C", "start /B " + foundPath + " > server.log 2>&1").Run()
 	} else {
 		exec.Command(foundPath).Start()
 	}
@@ -130,7 +131,8 @@ func runPreloader() {
 		script := "tell application \"Terminal\" to do script \"/usr/local/bin/localembed-preloader\""
 		exec.Command("osascript", "-e", script).Run()
 	} else if runtime.GOOS == "windows" {
-		exec.Command("cmd", "/C", "start", "localembed-preloader.exe").Run()
+		// Fixed: Use preloader.exe instead of localembed-preloader.exe
+		exec.Command("cmd", "/C", "start preloader.exe").Run()
 	}
 }
 
