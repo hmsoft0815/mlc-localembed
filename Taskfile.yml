@@ -32,31 +32,35 @@ tasks:
       - task: download-onnx
       - task: build
       - task: preload
-build:
-  desc: Build all binaries (including Cross-Platform GUI)
-  env:
-    GOWORK: "off"
-  cmds:
-    - mkdir -p bin
-    - go build -o bin/mlcembedder ./cmd/server/main.go
-    - go build -o bin/cli ./cmd/cli/main.go
-    - go build -o bin/preloader ./cmd/preloader/main.go
-    - |
-      # Build Unified GUI (macOS/Windows)
-      if [ "$(uname)" == "Linux" ]; then
-        # Cross-compile for Windows
-        GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o bin/localembed-gui.exe ./cmd/gui/main.go || echo "Windows GUI build failed"
-      elif [ "$(uname)" == "Darwin" ]; then
-        # Native build for macOS
-        go build -o bin/localembed-gui ./cmd/gui/main.go
-      fi
 
-clean:
-  desc: Remove binaries and temporary files
-  cmds:
-    - rm -rf bin
-    - rm -rf cmd/gui-win
+  build:
+    desc: Build all binaries (including Cross-Platform GUI)
+    env:
+      GOWORK: "off"
+    cmds:
+      - mkdir -p bin
+      - go build -o bin/mlcembedder ./cmd/server/main.go
+      - go build -o bin/cli ./cmd/cli/main.go
+      - go build -o bin/preloader ./cmd/preloader/main.go
+      - |
+        # Build Unified GUI (macOS/Windows)
+        if [ "$(uname)" == "Linux" ]; then
+          # Cross-compile for Windows
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o bin/localembed-gui.exe ./cmd/gui/main.go || echo "Windows GUI build failed"
+        elif [ "$(uname)" == "Darwin" ]; then
+          # Native build for macOS
+          go build -o bin/localembed-gui ./cmd/gui/main.go
+        fi
 
+  clean:
+    desc: Remove binaries and temporary files
+    cmds:
+      - rm -rf bin
+      - rm -rf cmd/gui-win
+
+  test:
+    desc: Run tests
+    env:
       ONNX_PATH: "{{.TASKFILE_DIR}}/{{.ONNX_LIB}}"
       GOWORK: "off"
     cmds:
@@ -180,11 +184,6 @@ clean:
     cmds:
       - ./bin/cli {{.CLI_ARGS}}
 
-  clean:
-    desc: Remove binaries
-    cmds:
-      - rm -rf bin
-
   rpm:
     desc: Build RPM package (requires rpmbuild)
     cmds:
@@ -229,6 +228,3 @@ clean:
     cmds:
       - chmod +x scripts/install.sh
       - ./scripts/install.sh
-
-
-
