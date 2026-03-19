@@ -32,9 +32,21 @@ cache:
       # Ensure dependencies are available
       go mod download
 
+.cleanup_task:
+  after_script:
+    - |
+      if [ "$(uname)" == "Darwin" ]; then
+        export GOPATH=/tmp/gitlab-go-cache
+      else
+        export GOPATH=$CI_BUILDS_DIR/go
+      fi
+      chmod -R +w $GOPATH/pkg/mod || true
+
 build-linux:
   stage: build
-  extends: .base_task
+  extends: 
+    - .base_task
+    - .cleanup_task
   tags:
     - linux
     - build
@@ -46,12 +58,12 @@ build-linux:
   artifacts:
     paths:
       - bin-linux/
-  after_script:
-    - chmod -R +w $GOPATH/pkg/mod || true
 
 build-macos:
   stage: build
-  extends: .base_task
+  extends: 
+    - .base_task
+    - .cleanup_task
   tags:
     - macos
   script:
@@ -64,32 +76,32 @@ build-macos:
     paths:
       - bin-macos/
       - LocalEmbed-*.dmg
-  after_script:
-    - chmod -R +w $GOPATH/pkg/mod || true
 
 build-windows-cross:
   stage: build
-  extends: .base_task
+  extends: 
+    - .base_task
+    - .cleanup_task
   tags:
     - windows-cross
   script:
     - echo "Building for Windows (Cross-Compile)..."
     # Basic tools
     - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc task build
-    # Windows GUI (Needs specific cross-compiler settings for systray)
-    - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o bin/localembed-gui.exe ./cmd/gui-win/main.go
+    # Windows GUI (Using the unified GUI code in cmd/gui/main.go)
+    - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o bin/localembed-gui.exe ./cmd/gui/main.go
     - mkdir -p bin-windows
     - cp bin/*.exe bin-windows/
   artifacts:
     paths:
       - bin-windows/
   allow_failure: true
-  after_script:
-    - chmod -R +w $GOPATH/pkg/mod || true
 
 test-linux:
   stage: test
-  extends: .base_task
+  extends: 
+    - .base_task
+    - .cleanup_task
   tags:
     - linux
   dependencies:
@@ -97,12 +109,12 @@ test-linux:
   script:
     - cp bin-linux/* bin/
     - task test
-  after_script:
-    - chmod -R +w $GOPATH/pkg/mod || true
 
 test-macos:
   stage: test
-  extends: .base_task
+  extends: 
+    - .base_task
+    - .cleanup_task
   tags:
     - macos
   dependencies:
@@ -110,8 +122,6 @@ test-macos:
   script:
     - cp bin-macos/* bin/
     - task test
-  after_script:
-    - chmod -R +w $GOPATH/pkg/mod || true
 
 release-artifacts:
   stage: release
@@ -127,7 +137,7 @@ release-artifacts:
     # Pack Linux
     - task download-onnx PLATFORM=linux
     - tar -czf release_pkgs/localembed-linux-amd64.tar.gz bin-linux/mlcembedder bin-linux/cli bin-linux/preloader libonnxruntime.so LICENSE README.md config.yaml
-    # Pack macOS (using binaries from build-macos)
+    # Pack macOS
     - task download-onnx PLATFORM=darwin
     - tar -czf release_pkgs/localembed-macos-arm64.tar.gz bin-macos/mlcembedder bin-macos/cli bin-macos/preloader libonnxruntime.dylib LICENSE README.md config.yaml
     # Pack Windows
