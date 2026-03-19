@@ -151,6 +151,7 @@ tasks:
         if [ -z "$OS" ]; then OS=$(uname | tr '[:upper:]' '[:lower:]'); fi
         ARCH=$(uname -m)
         echo "Downloading ONNX for $OS ($ARCH)..."
+        mkdir -p .onnx_tmp
         if [ "$OS" == "darwin" ] || [ "$OS" == "macos" ]; then
           if [ "$ARCH" == "arm64" ]; then
             URL="https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-osx-arm64-1.17.0.tgz"
@@ -158,15 +159,15 @@ tasks:
             URL="https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-osx-x86_64-1.17.0.tgz"
           fi
           curl -L $URL -o onnx.tgz
-          tar -xzf onnx.tgz --strip-components 1
-          cp lib/libonnxruntime.1.17.0.dylib ./libonnxruntime.dylib
+          tar -xzf onnx.tgz -C .onnx_tmp --strip-components 1
+          cp .onnx_tmp/lib/libonnxruntime.1.17.0.dylib ./libonnxruntime.dylib
         elif [ "$OS" == "linux" ]; then
           URL="https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-linux-x64-1.17.0.tgz"
           curl -L $URL -o onnx.tgz
-          tar -xzf onnx.tgz --strip-components 1
-          cp lib/libonnxruntime.so.1.17.0 ./libonnxruntime.so
+          tar -xzf onnx.tgz -C .onnx_tmp --strip-components 1
+          cp .onnx_tmp/lib/libonnxruntime.so.1.17.0 ./libonnxruntime.so
         fi
-        rm -rf onnx.tgz include lib LICENSE GIT_COMMIT_ID VERSION_NUMBER bin
+        rm -rf onnx.tgz .onnx_tmp
 
   preload:
     desc: Preload models (Go version with HF_TOKEN support)
