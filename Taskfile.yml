@@ -32,25 +32,31 @@ tasks:
       - task: download-onnx
       - task: build
       - task: preload
+build:
+  desc: Build all binaries (including Cross-Platform GUI)
+  env:
+    GOWORK: "off"
+  cmds:
+    - mkdir -p bin
+    - go build -o bin/mlcembedder ./cmd/server/main.go
+    - go build -o bin/cli ./cmd/cli/main.go
+    - go build -o bin/preloader ./cmd/preloader/main.go
+    - |
+      # Build Unified GUI (macOS/Windows)
+      if [ "$(uname)" == "Linux" ]; then
+        # Cross-compile for Windows
+        GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o bin/localembed-gui.exe ./cmd/gui/main.go || echo "Windows GUI build failed"
+      elif [ "$(uname)" == "Darwin" ]; then
+        # Native build for macOS
+        go build -o bin/localembed-gui ./cmd/gui/main.go
+      fi
 
-  build:
-    desc: Build all binaries
-    env:
-      GOWORK: "off"
-    cmds:
-      - mkdir -p bin
-      - go build -o bin/mlcembedder ./cmd/server/main.go
-      - go build -o bin/cli ./cmd/cli/main.go
-      - go build -o bin/preloader ./cmd/preloader/main.go
-      - |
-        if [ "$(uname)" == "Linux" ] || [ "$(uname)" == "Darwin" ]; then
-          # Build Windows GUI (requires cross-compile support if on Linux)
-          GOOS=windows GOARCH=amd64 go build -o bin/localembed-gui.exe ./cmd/gui-win/main.go || echo "Skipping Windows GUI build"
-        fi
+clean:
+  desc: Remove binaries and temporary files
+  cmds:
+    - rm -rf bin
+    - rm -rf cmd/gui-win
 
-  test:
-    desc: Run tests
-    env:
       ONNX_PATH: "{{.TASKFILE_DIR}}/{{.ONNX_LIB}}"
       GOWORK: "off"
     cmds:
@@ -132,22 +138,24 @@ tasks:
       - ./tests/run_curl_tests.sh
 
   download-onnx:
-    desc: Download ONNX runtime library for the current platform
+    desc: Download ONNX runtime library for the current platform (or specify PLATFORM=linux/darwin)
+    vars:
+      TARGET_OS: '{{default OS .PLATFORM}}'
     cmds:
       - |
-        OS=$(uname | tr '[:upper:]' '[:lower:]')
+        OS="{{.TARGET_OS}}"
+        if [ -z "$OS" ]; then OS=$(uname | tr '[:upper:]' '[:lower:]'); fi
         ARCH=$(uname -m)
-        if [ "$OS" == "darwin" ]; then
+        echo "Downloading ONNX for $OS ($ARCH)..."
+        if [ "$OS" == "darwin" ] || [ "$OS" == "macos" ]; then
           if [ "$ARCH" == "arm64" ]; then
             URL="https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-osx-arm64-1.17.0.tgz"
-            LIB="libonnxruntime.1.17.0.dylib"
           else
             URL="https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-osx-x86_64-1.17.0.tgz"
-            LIB="libonnxruntime.1.17.0.dylib"
           fi
           curl -L $URL -o onnx.tgz
           tar -xzf onnx.tgz --strip-components 1
-          cp lib/$LIB ./libonnxruntime.dylib
+          cp lib/libonnxruntime.1.17.0.dylib ./libonnxruntime.dylib
         elif [ "$OS" == "linux" ]; then
           URL="https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-linux-x64-1.17.0.tgz"
           curl -L $URL -o onnx.tgz
