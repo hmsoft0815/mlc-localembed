@@ -4,7 +4,6 @@ stages:
   - release
 
 variables:
-  GOPATH: $CI_BUILDS_DIR/go
   GOWORK: "off"
   GOFLAGS: "-modcacherw"
 
@@ -15,6 +14,13 @@ cache:
 .base_task:
   before_script:
     - |
+      # Set platform specific GOPATH
+      if [ "$(uname)" == "Darwin" ]; then
+        export GOPATH=/tmp/gitlab-go-cache
+      else
+        export GOPATH=$CI_BUILDS_DIR/go
+      fi
+      
       if ! command -v task >/dev/null 2>&1; then
         echo "Installing go-task..."
         go install github.com/go-task/task/v3/cmd/task@latest
