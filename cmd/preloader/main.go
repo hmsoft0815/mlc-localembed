@@ -91,6 +91,8 @@ func main() {
 	}
 
 	token := os.Getenv("HF_TOKEN")
+	cacheProxy := os.Getenv("MLC_CACHE_PROXY")
+
 	if token == "" {
 		fmt.Print("Hugging Face Token (HF_TOKEN) nicht gefunden. Bitte eingeben (oder ENTER für anonym): ")
 		reader := bufio.NewReader(os.Stdin)
@@ -123,7 +125,13 @@ func main() {
 		}
 
 		destDir := filepath.Join(config.Storage.CacheDir, folderName)
+		
+		// Handle Cache Proxy
 		baseURL := fmt.Sprintf("https://huggingface.co/%s/resolve/main", repo)
+		if cacheProxy != "" {
+			fmt.Printf("Nutze Cache-Proxy: %s\n", cacheProxy)
+			baseURL = fmt.Sprintf("%s/huggingface/%s/resolve/main", strings.TrimSuffix(cacheProxy, "/"), repo)
+		}
 
 		// 1. JSON Konfigurationsdateien laden
 		jsonFiles := []string{"tokenizer.json", "config.json", "tokenizer_config.json", "special_tokens_map.json"}
