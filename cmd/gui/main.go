@@ -121,9 +121,10 @@ func runPreloader(state *AppState) {
 		script := "tell application \"Terminal\" to do script \"/usr/local/bin/localembed-preloader\""
 		exec.Command("osascript", "-e", script).Run()
 	} else if runtime.GOOS == "windows" {
-		preloader := filepath.Join(state.BaseDir, "preloader.exe")
-		// Start in a new visible console window
-		exec.Command("cmd", "/C", "start", preloader).Run()
+		// Use /D to set the working directory so config.yaml is found
+		// We use cmd /C start to get a new visible console window
+		cmd := exec.Command("cmd", "/C", "start", "/D", state.BaseDir, "preloader.exe")
+		cmd.Run()
 	}
 }
 
