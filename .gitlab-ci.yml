@@ -145,6 +145,8 @@ release-artifacts:
     # Pack Windows
     - task download-onnx PLATFORM=windows
     - zip -j release_pkgs/localembed-windows-amd64.zip bin-windows/*.exe onnxruntime.dll LICENSE README.md config.yaml
+    # Build Windows Installer (EXE)
+    - makensis packaging/windows/localembed.nsi
   artifacts:
     paths:
       - release_pkgs/
