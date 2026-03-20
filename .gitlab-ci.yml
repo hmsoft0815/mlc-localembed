@@ -11,6 +11,7 @@ variables:
 cache:
   paths:
     - bin/
+    - mlcembed/ # Modelle cachen, falls der NGINX mal offline ist
 
 .base_task:
   before_script:
@@ -99,6 +100,24 @@ build-windows-cross:
       - bin-windows/
   allow_failure: true
 
+test-preload:
+  stage: test
+  extends: 
+    - .base_task
+    - .cleanup_task
+  tags:
+    - linux
+    - build
+  script:
+    - echo "Testing model preloader with cache..."
+    - ./bin-linux/preloader <<EOF
+      
+      EOF
+  artifacts:
+    paths:
+      - mlcembed/
+    expire_in: 1 day
+
 test-linux:
   stage: test
   extends: 
@@ -108,6 +127,7 @@ test-linux:
     - linux
   dependencies:
     - build-linux
+    - test-preload
   script:
     - cp bin-linux/* bin/
     - task test
@@ -121,6 +141,7 @@ test-macos:
     - macos
   dependencies:
     - build-macos
+    - test-preload
   script:
     - cp bin-macos/* bin/
     - task test
