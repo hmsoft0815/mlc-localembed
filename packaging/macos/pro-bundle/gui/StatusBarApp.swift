@@ -1,82 +1,137 @@
 import AppKit
 import SwiftUI
+import Foundation
 
-// AppDelegate entspricht der klassischen @interface / @implementation AppDelegate : NSObject <NSApplicationDelegate>
+// MARK: - AppDelegate
 class AppDelegate: NSObject, NSApplicationDelegate {
     
-    // NSStatusItem ist das Objekt für das Icon in der Menüleiste
     var statusBarItem: NSStatusItem!
+    var statusTimer: Timer?
     
-    // Konstanten (let) statt #define oder static NSString
+    // Config
+    let apiURL = "http://localhost:9142/api/health"
     let serviceName = "com.localembed.server"
     let plistPath = "~/Library/LaunchAgents/com.localembed.server.plist"
+    
+    // Status State
+    var isServerReachable = false
 
-    // Entspricht - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Erstellt das Item in der System-Statusleiste (variable Breite)
+        // Init Status Item
         statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
         if let button = statusBarItem.button {
-            // SF Symbols (System-Icons) nutzen (neu in macOS 11+)
             button.image = NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: "LocalEmbed")
+            button.imagePosition = .imageLeft
         }
         
-        // Menü initialisieren
-        setupMenu()
+        // Initial Menu Build
+        updateMenu()
+        
+        // Start Polling Timer (every 5 seconds)
+        statusTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            self?.checkServerHealth()
+        }
+        
+        // Immediate check
+        checkServerHealth()
     }
 
-    func setupMenu() {
-        // Entspricht [[NSMenu alloc] init]
+    func updateMenu() {
         let menu = NSMenu()
         
-        // Ternärer Operator wie in Obj-C
-        let status = isServiceRunning() ? "🟢 Running" : "🔴 Stopped"
+        // --- Status Section ---
+        let statusText = isServerReachable ? "🟢 API Online" : "🔴 Offline / Loading"
+        let statusItem = NSMenuItem(title: statusText, action: nil, keyEquivalent: "")
+        statusItem.isEnabled = false
+        menu.addItem(statusItem)
         
-        // Entspricht [menu addItemWithTitle:...]
-        menu.addItem(NSMenuItem(title: "Status: \(status)", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         
-        // @objc func markiert Methoden, die über den alten Obj-C Selector-Mechanismus aufrufbar sind
-        // keyEquivalent ist der Shortcut (z.B. "s" für Cmd+S)
-        menu.addItem(NSMenuItem(title: "Start Server", action: #selector(startService), keyEquivalent: "s"))
-        menu.addItem(NSMenuItem(title: "Stop Server", action: #selector(stopService), keyEquivalent: "x"))
+        // --- Control Section ---
+        if !isServerReachable {
+            menu.addItem(NSMenuItem(title: "Start Server", action: #selector(startService), keyEquivalent: "s"))
+        } else {
+            menu.addItem(NSMenuItem(title: "Stop Server", action: #selector(stopService), keyEquivalent: "x"))
+        }
+        
         menu.addItem(NSMenuItem.separator())
         
+        // --- Tools Section ---
+        menu.addItem(NSMenuItem(title: "Download Models...", action: #selector(downloadModels), keyEquivalent: "d"))
         menu.addItem(NSMenuItem(title: "Open Logs", action: #selector(openLogs), keyEquivalent: "l"))
+        menu.addItem(NSMenuItem(title: "Check for Updates", action: #selector(checkUpdates), keyEquivalent: ""))
         
-        // NSApplication.terminate ist der Standard-Exit
-        menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem.separator())
+        
+        // --- Quit ---
+        menu.addItem(NSMenuItem(title: "Quit LocalEmbed", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         
         statusBarItem.menu = menu
     }
 
-    // Methoden mit @objc sind für [target performSelector:...] sichtbar
+    // MARK: - Actions
+    
     @objc func startService() {
         shell("launchctl load \(plistPath)")
-        setupMenu() // Menü neu zeichnen um Status zu aktualisieren
+        // Give it a second, then check
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            self.checkServerHealth()
+        }
     }
 
     @objc func stopService() {
         shell("launchctl unload \(plistPath)")
-        setupMenu()
+        isServerReachable = false
+        updateMenu()
     }
 
     @objc func openLogs() {
         shell("open /usr/local/var/log/localembed.log")
     }
-
-    func isServiceRunning() -> Bool {
-        // Prüft ob der Dienst in der launchctl Liste auftaucht
-        let output = shell("launchctl list | grep \(serviceName)")
-        return !output.isEmpty
+    
+    @objc func downloadModels() {
+        // Opens a Terminal window to run the preloader interactively (important for HF_TOKEN input)
+        let script = "tell application \"Terminal\" to do script \"/usr/local/bin/localembed-preloader\""
+        shell("osascript -e '\(script)'")
+        shell("osascript -e 'tell application \"Terminal\" to activate'")
+    }
+    
+    @objc func checkUpdates() {
+        if let url = URL(string: "https://github.com/mlcmcp/localembed/releases") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
-    // Hilfsfunktion zum Ausführen von Shell-Befehlen
-    // Entspricht einer Kombination aus NSTask und NSPipe
-    @discardableResult // Verhindert Warnung, wenn Rückgabewert ignoriert wird
+    // MARK: - Health Check Logic
+    
+    func checkServerHealth() {
+        guard let url = URL(string: apiURL) else { return }
+        
+        let task = URLSession.shared.dataTask(with: url) { [weak self] _, response, error in
+            let reachable = (error == nil && (response as? HTTPURLResponse)?.statusCode == 200)
+            
+            DispatchQueue.main.async {
+                if self?.isServerReachable != reachable {
+                    self?.isServerReachable = reachable
+                    self?.updateMenu()
+                    
+                    // Update Icon color/symbol based on status
+                    if let button = self?.statusBarItem.button {
+                        button.contentFilters = reachable ? [] : [CIFilter(name: "CIColorControls", parameters: [kCIInputSaturationKey: 0])!]
+                    }
+                }
+            }
+        }
+        task.resume()
+    }
+
+    // MARK: - Helper
+    
+    @discardableResult
     func shell(_ command: String) -> String {
-        let task = Process() // Früher NSTask
-        let pipe = Pipe()    // Früher NSPipe
+        let task = Process()
+        let pipe = Pipe()
         
         task.standardOutput = pipe
         task.standardError = pipe
@@ -85,12 +140,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         task.launch()
         
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let output = String(data: data, encoding: .utf8) ?? ""
-        return output
+        return String(data: data, encoding: .utf8) ?? ""
     }
 }
 
-// Main Entry Point (in Swift oft ohne explizite main.m)
+// MARK: - Main Loop
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate
