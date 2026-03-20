@@ -6,6 +6,7 @@ stages:
 variables:
   GOWORK: "off"
   GOFLAGS: "-modcacherw"
+  MLC_CACHE_PROXY: "http://172.16.0.150:3128"
 
 cache:
   paths:
