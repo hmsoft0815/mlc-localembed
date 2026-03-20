@@ -158,22 +158,34 @@ tasks:
           else
             URL="https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-osx-x86_64-1.17.0.tgz"
           fi
-          curl -L $URL -o onnx.tgz
-          tar -xzf onnx.tgz -C .onnx_tmp --strip-components 1
-          cp .onnx_tmp/lib/libonnxruntime.1.17.0.dylib ./libonnxruntime.dylib
         elif [ "$OS" == "linux" ]; then
           URL="https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-linux-x64-1.17.0.tgz"
-          curl -L $URL -o onnx.tgz
-          tar -xzf onnx.tgz -C .onnx_tmp --strip-components 1
-          cp .onnx_tmp/lib/libonnxruntime.so.1.17.0 ./libonnxruntime.so
         elif [ "$OS" == "windows" ] || [ "$OS" == "win32" ]; then
           URL="https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-win-x64-1.17.0.zip"
+        fi
+
+        # Apply local cache proxy if defined (e.g., http://localhost:3128)
+        if [ -n "$MLC_CACHE_PROXY" ]; then
+          echo "Using cache proxy: $MLC_CACHE_PROXY"
+          URL=$(echo "$URL" | sed "s|https://github.com|$MLC_CACHE_PROXY/github|")
+        fi
+
+        if [ "$OS" == "windows" ] || [ "$OS" == "win32" ]; then
           curl -L $URL -o onnx.zip
           unzip -o onnx.zip -d .onnx_tmp
           cp .onnx_tmp/onnxruntime-win-x64-1.17.0/lib/onnxruntime.dll ./onnxruntime.dll
           rm -f onnx.zip
+        else
+          curl -L $URL -o onnx.tgz
+          tar -xzf onnx.tgz -C .onnx_tmp --strip-components 1
+          if [ "$OS" == "darwin" ] || [ "$OS" == "macos" ]; then
+            cp .onnx_tmp/lib/libonnxruntime.1.17.0.dylib ./libonnxruntime.dylib
+          else
+            cp .onnx_tmp/lib/libonnxruntime.so.1.17.0 ./libonnxruntime.so
+          fi
+          rm -f onnx.tgz
         fi
-        rm -rf onnx.tgz .onnx_tmp
+        rm -rf .onnx_tmp
 
   preload:
     desc: Preload models (Go version with HF_TOKEN support)
