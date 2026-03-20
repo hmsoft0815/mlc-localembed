@@ -15,3 +15,5 @@ vendor/
 *.exe
 *.test
 *.prof
+GEMINI.md
+TODO.md
