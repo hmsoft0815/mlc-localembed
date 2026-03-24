@@ -18,9 +18,11 @@ mkdir -p "$RESOURCES_DIR"
 
 # 2. Build Go Binaries
 echo "📦 Building Go binaries..."
-GOWORK=off go build -o "$MACOS_DIR/mlcembedder" ./cmd/server/main.go
-GOWORK=off go build -o "$MACOS_DIR/localembed-cli" ./cmd/cli/main.go
-GOWORK=off go build -o "$MACOS_DIR/localembed-preloader" ./cmd/preloader/main.go
+export CGO_LDFLAGS="-L."
+export CGO_ENABLED=1
+GOWORK=off go build -v -o "$MACOS_DIR/mlcembedder" ./cmd/server/main.go
+GOWORK=off go build -v -o "$MACOS_DIR/localembed-cli" ./cmd/cli/main.go
+GOWORK=off go build -v -o "$MACOS_DIR/localembed-preloader" ./cmd/preloader/main.go
 
 # 3. Build Swift GUI
 echo "🎨 Building Swift GUI..."
