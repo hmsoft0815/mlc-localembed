@@ -280,6 +280,7 @@ func main() {
 	r.GET("/api/tags", handler.HandleTags)
 	r.GET("/api/ps", handler.HandlePs)
 	r.POST("/api/show", handler.HandleShow)
+
 	r.GET("/api/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status":  "ok",

@@ -18,19 +18,19 @@ cache:
     - |
       # Standard GOPATH
       export GOPATH=$CI_BUILDS_DIR/go
-      
+
       # Ensure go/bin is in PATH for task
       export PATH=$PATH:$(go env GOPATH)/bin
-      
+
       if ! command -v task >/dev/null 2>&1; then
         echo "Installing go-task..."
         go install github.com/go-task/task/v3/cmd/task@latest
       fi
-      
+
       # Ensure dependencies are available within the module (ignore go.work)
       export GOWORK=off
       go mod download
-      
+
       # Ensure rust target for windows cross-compilation
       if command -v rustup >/dev/null 2>&1; then
         rustup target add x86_64-pc-windows-gnu || true
@@ -44,7 +44,7 @@ cache:
 
 build-linux:
   stage: build
-  extends: 
+  extends:
     - .base_task
     - .cleanup_task
   tags:
@@ -64,7 +64,7 @@ build-linux:
 
 build-macos:
   stage: build
-  extends: 
+  extends:
     - .base_task
     - .cleanup_task
   tags:
@@ -85,7 +85,14 @@ build-macos:
 
 build-windows-cross:
   stage: build
-  extends: 
+  variables:
+    # Force the C++ compiler to the correct MingW G++ binary
+    CXX: "x86_64-w64-mingw32-g++"
+    # Ensure the linker is also set correctly for Rust
+    CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: "x86_64-w64-mingw32-gcc"
+
+
+  extends:
     - .base_task
     - .cleanup_task
   tags:
@@ -101,12 +108,12 @@ build-windows-cross:
       fi
       export GOWORK=off
       go mod download
-      
+
       # Ensure rust target for windows cross-compilation
       if command -v rustup >/dev/null 2>&1; then
         rustup target add x86_64-pc-windows-gnu || true
       fi
-      
+
       # Ensure MinGW G++ is installed for Rust C++ components
       if ! command -v x86_64-w64-mingw32-g++ >/dev/null 2>&1; then
         echo "Installing MinGW G++..."
@@ -115,6 +122,7 @@ build-windows-cross:
         sudo mv /etc/apt/sources.list.d/runner_gitlab-runner.list.bak /etc/apt/sources.list.d/runner_gitlab-runner.list || true
       fi
   script:
+    - rustup target add x86_64-pc-windows-gnu
     - echo "Building for Windows (Cross-Compile)..."
     - task download-onnx PLATFORM=windows
     - task download-tokenizers PLATFORM=windows
@@ -130,7 +138,7 @@ build-windows-cross:
 
 test-preload:
   stage: test
-  extends: 
+  extends:
     - .base_task
     - .cleanup_task
   tags:
@@ -139,7 +147,7 @@ test-preload:
   script:
     - echo "Testing model preloader with cache..."
     - ./bin-linux/preloader <<EOF
-      
+
       EOF
   artifacts:
     paths:
@@ -148,7 +156,7 @@ test-preload:
 
 test-linux:
   stage: test
-  extends: 
+  extends:
     - .base_task
     - .cleanup_task
   tags:
@@ -166,7 +174,7 @@ test-linux:
 
 test-macos:
   stage: test
-  extends: 
+  extends:
     - .base_task
     - .cleanup_task
   tags:
