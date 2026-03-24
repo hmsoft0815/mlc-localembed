@@ -30,6 +30,11 @@ cache:
       # Ensure dependencies are available within the module (ignore go.work)
       export GOWORK=off
       go mod download
+      
+      # Ensure rust target for windows cross-compilation
+      if command -v rustup >/dev/null 2>&1; then
+        rustup target add x86_64-pc-windows-gnu || true
+      fi
 
 .cleanup_task:
   after_script:

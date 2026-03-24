@@ -267,7 +267,7 @@ tasks:
       - ./scripts/install.sh
 
   download-tokenizers:
-    desc: Download libtokenizers for the specified platform (PLATFORM=linux/darwin/windows)
+    desc: Download libtokenizers for the specified platform (PLATFORM=linux/darwin/windows). Fallback to compile if not found.
     vars:
       TARGET_OS: '{{default OS .PLATFORM}}'
     cmds:
@@ -292,12 +292,51 @@ tasks:
             FILE="libtokenizers.linux-x86_64.tar.gz"
           fi
         elif [ "$OS" == "windows" ] || [ "$OS" == "win32" ]; then
-          # Windows uses .zip
-          FILE="libtokenizers.windows-amd64.zip"
-          EXT="zip"
+          # No official windows binary in v1.26.0, fallback to compile
+          task compile-tokenizers PLATFORM=windows
+          exit 0
         fi
 
         URL="https://github.com/daulet/tokenizers/releases/download/$VERSION/$FILE"
+...
+  compile-tokenizers:
+    desc: Compile libtokenizers from source for the specified platform (requires Rust)
+    vars:
+      TARGET_OS: '{{default OS .PLATFORM}}'
+    cmds:
+      - |
+        OS="{{.TARGET_OS}}"
+        if [ -z "$OS" ]; then OS=$(uname | tr '[:upper:]' '[:lower:]'); fi
+        echo "Compiling libtokenizers for $OS..."
+        
+        # Get source path from go mod cache
+        MOD_PATH=$(go list -m -f '{{.Dir}}' github.com/daulet/tokenizers)
+        if [ -z "$MOD_PATH" ]; then
+          echo "Error: github.com/daulet/tokenizers not found in go modules"
+          exit 1
+        fi
+        
+        # Use temporary build dir to keep the mod cache clean
+        BUILD_DIR="/tmp/localembed-build-tokenizers-$(date +%s)"
+        mkdir -p "$BUILD_DIR"
+        cp -r "$MOD_PATH"/* "$BUILD_DIR/"
+        chmod -R +w "$BUILD_DIR"
+
+        cd "$BUILD_DIR"
+        
+        if [ "$OS" == "windows" ]; then
+          # Cross-compile for Windows using MinGW (matches our Go setup)
+          cargo build --release --target x86_64-pc-windows-gnu
+          cp target/x86_64-pc-windows-gnu/release/libtokenizers.a "{{.TASKFILE_DIR}}/libtokenizers.a"
+        else
+          # Native build
+          cargo build --release
+          cp target/release/libtokenizers.a "{{.TASKFILE_DIR}}/libtokenizers.a"
+        fi
+        
+        cd -
+        rm -rf "$BUILD_DIR"
+        echo "libtokenizers.a for $OS compiled successfully."
 
         # Apply local cache proxy if defined
         if [ -n "$MLC_CACHE_PROXY" ]; then
