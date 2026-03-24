@@ -18,7 +18,12 @@ mkdir -p "$RESOURCES_DIR"
 
 # 2. Build Go Binaries
 echo "📦 Building Go binaries..."
-export CGO_LDFLAGS="-L."
+if [ ! -f "libtokenizers.a" ]; then
+    echo "❌ Error: libtokenizers.a not found in $(pwd)"
+    ls -la
+    exit 1
+fi
+export CGO_LDFLAGS="-L$(pwd)"
 export CGO_ENABLED=1
 GOWORK=off go build -v -o "$MACOS_DIR/mlcembedder" ./cmd/server/main.go
 GOWORK=off go build -v -o "$MACOS_DIR/localembed-cli" ./cmd/cli/main.go

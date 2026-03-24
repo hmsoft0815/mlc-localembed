@@ -346,9 +346,13 @@ tasks:
 
         curl -L $URL -o tokenizers.$EXT
         if [ "$EXT" == "zip" ]; then
-          unzip -o tokenizers.zip libtokenizers.a
+          unzip -o tokenizers.zip
+          # If it extracted something like libtokenizers.windows-amd64.a, rename it
+          find . -name "libtokenizers*.a" -exec mv {} libtokenizers.a \; 2>/dev/null || true
+          find . -name "tokenizers*.lib" -exec cp {} libtokenizers.a \; 2>/dev/null || true
         else
-          tar -xzf tokenizers.tar.gz libtokenizers.a
+          tar -xzf tokenizers.tar.gz
+          find . -name "libtokenizers*.a" -exec mv {} libtokenizers.a \; 2>/dev/null || true
         fi
-        rm tokenizers.$EXT
-        echo "libtokenizers.a for $OS downloaded."
+        rm -f tokenizers.$EXT
+        echo "libtokenizers.a for $OS ready."
