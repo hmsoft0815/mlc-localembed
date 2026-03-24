@@ -133,6 +133,9 @@ test-linux:
     - build-linux
     - test-preload
   script:
+    - |
+      if [ ! -f "libtokenizers.a" ]; then task download-tokenizers; fi
+      if [ ! -f "libonnxruntime.so" ]; then task download-onnx; fi
     - export CGO_LDFLAGS="-L$(pwd)"
     - cp bin-linux/* bin/
     - task test
