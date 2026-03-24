@@ -56,6 +56,14 @@ tasks:
       - mkdir -p bin
       - |
         if [ "{{.TARGET_OS}}" == "windows" ]; then
+          # On Windows, we don't have -ldl. CGO might try to add it.
+          # We force CGO_LDFLAGS to NOT include -ldl for windows.
+          export CGO_LDFLAGS="-L{{.TASKFILE_DIR}}"
+          if [ ! -f "libtokenizers.a" ]; then
+            echo "❌ Error: libtokenizers.a not found before build!"
+            ls -la
+            exit 1
+          fi
           GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go build -o bin/mlcembedder.exe ./cmd/server/main.go
           GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go build -o bin/cli.exe ./cmd/cli/main.go
           GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go build -o bin/preloader.exe ./cmd/preloader/main.go
