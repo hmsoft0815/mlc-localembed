@@ -31,8 +31,17 @@ tasks:
     cmds:
       - task: download-onnx
       - task: download-tokenizers
+      - task: deps
       - task: build
       - task: preload
+
+  deps:
+    desc: Ensure all dependencies are downloaded
+    env:
+      GOWORK: "off"
+    cmds:
+      - go mod download
+      - go mod tidy
 
   build:
     desc: Build all binaries (including Cross-Platform GUI)
@@ -43,6 +52,7 @@ tasks:
       CGO_LDFLAGS: "-L{{.TASKFILE_DIR}}"
       CGO_ENABLED: "1"
     cmds:
+      - task: deps
       - mkdir -p bin
       - |
         if [ "{{.TARGET_OS}}" == "windows" ]; then

@@ -31,8 +31,10 @@ cache:
         go install github.com/go-task/task/v3/cmd/task@latest
       fi
       
-      # Ensure dependencies are available
+      # Ensure dependencies are available within the module (ignore go.work)
+      export GOWORK=off
       go mod download
+      go mod tidy
 
 .cleanup_task:
   after_script:
