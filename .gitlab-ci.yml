@@ -91,8 +91,22 @@ build-windows-cross:
   tags:
     - windows-cross
   before_script:
-    - !reference [.base_task, before_script]
     - |
+      # Standard GOPATH and task setup
+      export GOPATH=$CI_BUILDS_DIR/go
+      export PATH=$PATH:$(go env GOPATH)/bin
+      if ! command -v task >/dev/null 2>&1; then
+        echo "Installing go-task..."
+        go install github.com/go-task/task/v3/cmd/task@latest
+      fi
+      export GOWORK=off
+      go mod download
+      
+      # Ensure rust target for windows cross-compilation
+      if command -v rustup >/dev/null 2>&1; then
+        rustup target add x86_64-pc-windows-gnu || true
+      fi
+      
       # Ensure MinGW G++ is installed for Rust C++ components
       if ! command -v x86_64-w64-mingw32-g++ >/dev/null 2>&1; then
         echo "Installing MinGW G++..."

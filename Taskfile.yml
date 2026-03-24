@@ -359,10 +359,18 @@ tasks:
         
         if [ "$OS" == "windows" ]; then
           # Cross-compile for Windows using MinGW (matches our Go setup)
+          echo "Debug: Compiler paths:"
+          which x86_64-w64-mingw32-gcc || echo "gcc not found"
+          which x86_64-w64-mingw32-g++ || echo "g++ not found"
+          
           # We need to tell cargo which tools to use for MinGW
           export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc
           export CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc
           export CXX_x86_64_pc_windows_gnu=x86_64-w64-mingw32-g++
+          # Fallback for crates that don't use target-specific vars
+          export CC=x86_64-w64-mingw32-gcc
+          export CXX=x86_64-w64-mingw32-g++
+          
           cargo build --release --target x86_64-pc-windows-gnu
           cp target/x86_64-pc-windows-gnu/release/libtokenizers.a "{{.TASKFILE_DIR}}/libtokenizers.a"
         else
