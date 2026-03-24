@@ -70,6 +70,7 @@ tasks:
     env:
       ONNX_PATH: "{{.TASKFILE_DIR}}/{{.ONNX_LIB}}"
       GOWORK: "off"
+      CGO_LDFLAGS: "-L{{.TASKFILE_DIR}}"
     cmds:
       - go test ./...
 
