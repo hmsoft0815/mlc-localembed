@@ -278,22 +278,26 @@ tasks:
         VERSION="v1.26.0"
         echo "Downloading libtokenizers for $OS ($ARCH)..."
         
+        EXT="tar.gz"
         if [ "$OS" == "darwin" ] || [ "$OS" == "macos" ]; then
           if [ "$ARCH" == "arm64" ]; then
-            URL="https://github.com/daulet/tokenizers/releases/download/$VERSION/libtokenizers.darwin-arm64.tar.gz"
+            FILE="libtokenizers.darwin-arm64.tar.gz"
           else
-            URL="https://github.com/daulet/tokenizers/releases/download/$VERSION/libtokenizers.darwin-amd64.tar.gz"
+            FILE="libtokenizers.darwin-x86_64.tar.gz"
           fi
         elif [ "$OS" == "linux" ]; then
           if [ "$ARCH" == "aarch64" ] || [ "$ARCH" == "arm64" ]; then
-            URL="https://github.com/daulet/tokenizers/releases/download/$VERSION/libtokenizers.linux-arm64.tar.gz"
+            FILE="libtokenizers.linux-aarch64.tar.gz"
           else
-            URL="https://github.com/daulet/tokenizers/releases/download/$VERSION/libtokenizers.linux-amd64.tar.gz"
+            FILE="libtokenizers.linux-x86_64.tar.gz"
           fi
         elif [ "$OS" == "windows" ] || [ "$OS" == "win32" ]; then
-          # Always amd64 for Windows for now
-          URL="https://github.com/daulet/tokenizers/releases/download/$VERSION/libtokenizers.windows-amd64.tar.gz"
+          # Windows uses .zip
+          FILE="libtokenizers.windows-amd64.zip"
+          EXT="zip"
         fi
+
+        URL="https://github.com/daulet/tokenizers/releases/download/$VERSION/$FILE"
 
         # Apply local cache proxy if defined
         if [ -n "$MLC_CACHE_PROXY" ]; then
@@ -301,7 +305,11 @@ tasks:
           URL=$(echo "$URL" | sed "s|https://github.com|$MLC_CACHE_PROXY/github|")
         fi
 
-        curl -L $URL -o tokenizers.tar.gz
-        tar -xzf tokenizers.tar.gz libtokenizers.a
-        rm tokenizers.tar.gz
+        curl -L $URL -o tokenizers.$EXT
+        if [ "$EXT" == "zip" ]; then
+          unzip -o tokenizers.zip libtokenizers.a
+        else
+          tar -xzf tokenizers.tar.gz libtokenizers.a
+        fi
+        rm tokenizers.$EXT
         echo "libtokenizers.a for $OS downloaded."
