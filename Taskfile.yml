@@ -329,17 +329,26 @@ tasks:
         if [ -z "$OS" ]; then OS=$(uname | tr '[:upper:]' '[:lower:]'); fi
         echo "Compiling libtokenizers for $OS..."
         
-        # Get source path from go mod cache
-        MOD_PATH=$(go list -m -f '{{.Dir}}' github.com/daulet/tokenizers)
-        if [ -z "$MOD_PATH" ]; then
-          echo "Error: github.com/daulet/tokenizers not found in go modules"
+        # Get source path from go mod cache (force GOWORK off to get absolute path)
+        MOD_PATH=$(GOWORK=off go list -m -f '{{.Dir}}' github.com/daulet/tokenizers 2>/dev/null || echo "")
+        if [ -z "$MOD_PATH" ] || [ ! -d "$MOD_PATH" ]; then
+          echo "Module not in cache, downloading..."
+          GOWORK=off go mod download github.com/daulet/tokenizers
+          MOD_PATH=$(GOWORK=off go list -m -f '{{.Dir}}' github.com/daulet/tokenizers)
+        fi
+        
+        if [ -z "$MOD_PATH" ] || [ ! -d "$MOD_PATH" ]; then
+          echo "Error: github.com/daulet/tokenizers not found even after download"
           exit 1
         fi
+        
+        echo "Found source at $MOD_PATH"
         
         # Use temporary build dir to keep the mod cache clean
         BUILD_DIR="/tmp/localembed-build-tokenizers-$(date +%s)"
         mkdir -p "$BUILD_DIR"
-        cp -r "$MOD_PATH"/* "$BUILD_DIR/"
+        # Use . to avoid /* expansion issues
+        cp -r "$MOD_PATH/." "$BUILD_DIR/"
         chmod -R +w "$BUILD_DIR"
 
         cd "$BUILD_DIR"
