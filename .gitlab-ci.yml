@@ -90,6 +90,16 @@ build-windows-cross:
     - .cleanup_task
   tags:
     - windows-cross
+  before_script:
+    - !reference [.base_task, before_script]
+    - |
+      # Ensure MinGW G++ is installed for Rust C++ components
+      if ! command -v x86_64-w64-mingw32-g++ >/dev/null 2>&1; then
+        echo "Installing MinGW G++..."
+        sudo mv /etc/apt/sources.list.d/runner_gitlab-runner.list /etc/apt/sources.list.d/runner_gitlab-runner.list.bak || true
+        sudo apt-get update && sudo apt-get install -y g++-mingw-w64-x86-64
+        sudo mv /etc/apt/sources.list.d/runner_gitlab-runner.list.bak /etc/apt/sources.list.d/runner_gitlab-runner.list || true
+      fi
   script:
     - echo "Building for Windows (Cross-Compile)..."
     - task download-onnx PLATFORM=windows
