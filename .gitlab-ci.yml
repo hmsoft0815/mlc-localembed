@@ -126,9 +126,8 @@ test-linux:
   dependencies:
     - build-linux
     - test-preload
-  variables:
-    CGO_LDFLAGS: "-L$CI_PROJECT_DIR"
   script:
+    - export CGO_LDFLAGS="-L$(pwd)"
     - cp bin-linux/* bin/
     - task test
 
@@ -142,9 +141,8 @@ test-macos:
   dependencies:
     - build-macos
     - test-preload
-  variables:
-    CGO_LDFLAGS: "-L$CI_PROJECT_DIR"
   script:
+    - export CGO_LDFLAGS="-L$(pwd)"
     - cp bin-macos/* bin/
     - task test
 
