@@ -59,6 +59,8 @@ build-linux:
   artifacts:
     paths:
       - bin-linux/
+      - libonnxruntime.so
+      - libtokenizers.a
 
 build-macos:
   stage: build
@@ -77,6 +79,8 @@ build-macos:
   artifacts:
     paths:
       - bin-macos/
+      - libonnxruntime.dylib
+      - libtokenizers.a
       - LocalEmbed-*.dmg
 
 build-windows-cross:
@@ -96,6 +100,8 @@ build-windows-cross:
   artifacts:
     paths:
       - bin-windows/
+      - onnxruntime.dll
+      - libtokenizers.a
   allow_failure: true
 
 test-preload:
@@ -142,6 +148,9 @@ test-macos:
     - build-macos
     - test-preload
   script:
+    - |
+      if [ ! -f "libtokenizers.a" ]; then task download-tokenizers; fi
+      if [ ! -f "libonnxruntime.dylib" ]; then task download-onnx; fi
     - export CGO_LDFLAGS="-L$(pwd)"
     - cp bin-macos/* bin/
     - task test
