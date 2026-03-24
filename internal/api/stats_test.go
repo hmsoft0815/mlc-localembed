@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestStatsCollector verifies that basic request recording and average duration
+// calculations are accurate for a single model.
 func TestStatsCollector(t *testing.T) {
 	s := NewStatsCollector()
 	assert.NotNil(t, s)
@@ -38,6 +40,8 @@ func TestStatsCollector(t *testing.T) {
 	assert.NotNil(t, stats.Models[model])
 }
 
+// TestStatsCollector_MultiModel ensures that metrics are correctly separated
+// and aggregated when multiple different models are used.
 func TestStatsCollector_MultiModel(t *testing.T) {
 	s := NewStatsCollector()
 
@@ -53,6 +57,8 @@ func TestStatsCollector_MultiModel(t *testing.T) {
 	assert.Equal(t, 200.0, stats.Models["model-B"].AvgDurationMs)
 }
 
+// TestStatsCollector_Concurrency validates that the collector is thread-safe
+// and maintains data integrity under high concurrent load.
 func TestStatsCollector_Concurrency(t *testing.T) {
 	s := NewStatsCollector()
 	var wg sync.WaitGroup

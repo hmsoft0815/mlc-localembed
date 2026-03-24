@@ -4,9 +4,7 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"syscall"
 )
 
@@ -20,7 +18,7 @@ func startServer(state *AppState) {
 	cmd := exec.Command("cmd", "/C", cmdLine)
 	cmd.Dir = state.BaseDir
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	
+
 	err := cmd.Run()
 	if err != nil {
 		fmt.Printf("Error starting server: %v\n", err)

@@ -8,11 +8,14 @@ import (
 	"sync"
 )
 
+// lruEntry holds a single key-value pair in the LRU cache.
 type lruEntry struct {
 	key   string
 	value []float32
 }
 
+// LRUCache implements a thread-safe Least Recently Used cache for embedding vectors.
+// It uses a map for O(1) lookups and a doubly-linked list for O(1) eviction of the oldest items.
 type LRUCache struct {
 	capacity  int
 	items     map[string]*list.Element
@@ -20,6 +23,7 @@ type LRUCache struct {
 	mu        sync.Mutex
 }
 
+// NewLRUCache creates a new LRUCache with the specified maximum capacity.
 func NewLRUCache(capacity int) *LRUCache {
 	return &LRUCache{
 		capacity:  capacity,
@@ -28,6 +32,9 @@ func NewLRUCache(capacity int) *LRUCache {
 	}
 }
 
+// Get retrieves an embedding vector from the cache.
+// It returns a copy of the cached vector to prevent external modification.
+// If the key exists, it is moved to the front of the eviction list (marking it as most recently used).
 func (c *LRUCache) Get(key string) ([]float32, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -43,6 +50,8 @@ func (c *LRUCache) Get(key string) ([]float32, bool) {
 	return nil, false
 }
 
+// Add inserts or updates an embedding vector in the cache.
+// If the cache exceeds its capacity, the least recently used item is evicted.
 func (c *LRUCache) Add(key string, value []float32) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

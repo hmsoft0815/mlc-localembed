@@ -36,3 +36,28 @@ func TestLRUCache(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, v3, res)
 }
+
+func TestLRUCacheUpdate(t *testing.T) {
+	cache := NewLRUCache(2)
+	v1 := []float32{1.0, 1.0}
+	v2 := []float32{2.0, 2.0}
+
+	cache.Add("k1", v1)
+	cache.Add("k1", v2) // Update
+
+	res, ok := cache.Get("k1")
+	assert.True(t, ok)
+	assert.Equal(t, v2, res)
+}
+
+func TestLRUCacheImmutability(t *testing.T) {
+	cache := NewLRUCache(2)
+	v1 := []float32{1.0, 1.0}
+	cache.Add("k1", v1)
+
+	res, _ := cache.Get("k1")
+	res[0] = 99.9 // Modify the returned slice
+
+	res2, _ := cache.Get("k1")
+	assert.Equal(t, float32(1.0), res2[0], "Cache content should not be modified by external changes to retrieved slices")
+}

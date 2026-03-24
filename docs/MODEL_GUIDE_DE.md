@@ -9,7 +9,7 @@ Das E5-Design ("Enhanced English Encoders") wurde explizit für die Ähnlichkeit
 - **Stärke:** Exzellente Ergebnisse bei asymmetrischer Suche (kurze Frage -> langer Text).
 - **Besonderheit:** Arbeitet mit Präfixen (`query:` und `passage:`), um den Kontext der Anfrage zu verstehen.
 
-### 2. BGE (Der Effizienz-König)
+### 2. BGE (Sehr Effizient)
 BGE-Modelle (Beijing Academy of Artificial Intelligence) gehören zu den leistungsfähigsten Open-Source-Modellen auf der MTEB-Bestenliste.
 - **Stärke:** Extrem hohe Informationsdichte. Findet Übereinstimmungen oft schon bei sehr kurzen Tool-Namen oder technischen Begriffen.
 - **Besonderheit:** Sehr stabil und effizient in der ONNX-Ausführung.

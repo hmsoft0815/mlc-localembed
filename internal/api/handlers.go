@@ -15,36 +15,40 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// EmbedRequest follows Ollama's /api/embed request structure
+// EmbedRequest follows Ollama's /api/embed request structure.
+// It supports both the modern "input" field (string or array of strings)
+// and the legacy "prompt" field.
 type EmbedRequest struct {
 	Model  string      `json:"model" binding:"required"`
 	Input  interface{} `json:"input"`  // New style: string or []string
 	Prompt string      `json:"prompt"` // Legacy style: string
 }
 
-// EmbedResponse follows Ollama's /api/embed response structure
+// EmbedResponse follows Ollama's /api/embed response structure.
+// It provides a list of embedding vectors and maintains compatibility
+// with legacy clients expecting a single "embedding" field.
 type EmbedResponse struct {
 	Model      string      `json:"model"`
 	Embeddings [][]float32 `json:"embeddings,omitempty"`
 	Embedding  []float32   `json:"embedding,omitempty"` // Legacy style support
 }
 
-// TagResponse follows Ollama's /api/tags response structure
+// TagResponse follows Ollama's /api/tags response structure.
 type TagResponse struct {
 	Models []ModelDetails `json:"models"`
 }
 
-// ProcessResponse follows Ollama's /api/ps response structure
+// ProcessResponse follows Ollama's /api/ps response structure, showing currently loaded models.
 type ProcessResponse struct {
 	Models []ModelDetails `json:"models"`
 }
 
-// ShowRequest follows Ollama's /api/show request structure
+// ShowRequest follows Ollama's /api/show request structure to retrieve model metadata.
 type ShowRequest struct {
 	Name string `json:"name" binding:"required"`
 }
 
-// ShowResponse follows Ollama's /api/show response structure
+// ShowResponse follows Ollama's /api/show response structure.
 type ShowResponse struct {
 	Modelfile  string                 `json:"modelfile"`
 	Parameters string                 `json:"parameters"`
@@ -53,24 +57,26 @@ type ShowResponse struct {
 	ModelInfo  map[string]interface{} `json:"model_info"`
 }
 
-// SimilarityRequest for the test API
+// SimilarityRequest defines the input for the semantic similarity calculation endpoint.
 type SimilarityRequest struct {
 	Model     string   `json:"model" binding:"required"`
 	Query     string   `json:"query" binding:"required"`
 	Documents []string `json:"documents" binding:"required"`
 }
 
-// SimilarityResponse for the test API
+// SimilarityResponse contains the calculated scores for a list of documents.
 type SimilarityResponse struct {
 	Model  string             `json:"model"`
 	Scores []SimilarityResult `json:"scores"`
 }
 
+// SimilarityResult represents the similarity score for a specific document.
 type SimilarityResult struct {
 	Document string  `json:"document"`
 	Score    float32 `json:"score"`
 }
 
+// ModelDetails contains metadata about an embedding model.
 type ModelDetails struct {
 	Name       string    `json:"name"`
 	ModifiedAt time.Time `json:"modified_at"`
@@ -79,6 +85,7 @@ type ModelDetails struct {
 	Details    Details   `json:"details"`
 }
 
+// Details provides technical specifications of the model format and architecture.
 type Details struct {
 	Format            string   `json:"format"`
 	Family            string   `json:"family"`
@@ -87,6 +94,7 @@ type Details struct {
 	QuantizationLevel string   `json:"quantization_level"`
 }
 
+// ConfigModel represents a model configuration from the YAML config file.
 type ConfigModel struct {
 	Name           string   `yaml:"name"`
 	Aliases        []string `yaml:"aliases"`         // Optional: Alternative names
@@ -100,6 +108,7 @@ type ConfigModel struct {
 	Enabled        *bool    `yaml:"enabled"`
 }
 
+// Handler manages the API endpoints and coordinates between the web server and the embedding manager.
 type Handler struct {
 	manager      *embedding.Manager
 	configModels []ConfigModel
@@ -108,7 +117,7 @@ type Handler struct {
 	concurrency  chan struct{}
 }
 
-// resolveModel looks up the actual model name if an alias was provided
+// resolveModel looks up the primary model name if a known name or alias was provided.
 func (h *Handler) resolveModel(requestedModel string) string {
 	for _, m := range h.configModels {
 		if m.Name == requestedModel {
@@ -123,7 +132,8 @@ func (h *Handler) resolveModel(requestedModel string) string {
 	return ""
 }
 
-// HandleEmbedFaker returns dummy embeddings for testing
+// HandleEmbedFaker returns synthetic, zeroed embeddings for testing and development
+// without requiring the ONNX runtime or model weights.
 func (h *Handler) HandleEmbedFaker(c *gin.Context) {
 	var req EmbedRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -184,6 +194,8 @@ func NewHandler(manager *embedding.Manager, models []ConfigModel, defaultModel s
 	}
 }
 
+// HandleEmbed generates embeddings for the provided input using the specified model.
+// It supports both modern array-based input and legacy single-string prompts.
 func (h *Handler) HandleEmbed(c *gin.Context) {
 	var req EmbedRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -222,7 +234,7 @@ func (h *Handler) HandleEmbed(c *gin.Context) {
 		return
 	}
 
-	// Apply concurrency limit
+	// Apply concurrency limit to prevent system overload
 	h.concurrency <- struct{}{}
 	defer func() { <-h.concurrency }()
 
@@ -234,7 +246,7 @@ func (h *Handler) HandleEmbed(c *gin.Context) {
 		slog.Error("Embedding failed", "model", actualModelName, "error", err)
 
 		errMsg := err.Error()
-		// Return 400 for user errors
+		// Return 400 for user-correctable errors
 		if strings.Contains(errMsg, "token limit") ||
 			strings.Contains(errMsg, "empty document") ||
 			strings.Contains(errMsg, "no documents") {
@@ -256,11 +268,11 @@ func (h *Handler) HandleEmbed(c *gin.Context) {
 	)
 
 	resp := EmbedResponse{
-		Model:      req.Model, // Ollama returns the name that was used in request
+		Model:      req.Model, // Ollama returns the name that was used in the request
 		Embeddings: embeddings,
 	}
 
-	// Support legacy single-embedding response if only one input was provided
+	// Support legacy single-embedding response format if only one input was provided
 	if len(embeddings) == 1 {
 		resp.Embedding = embeddings[0]
 	}
@@ -268,13 +280,14 @@ func (h *Handler) HandleEmbed(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// HandleTags returns a list of all available models configured in the system.
 func (h *Handler) HandleTags(c *gin.Context) {
 	var models []ModelDetails
 	for _, m := range h.configModels {
 		models = append(models, ModelDetails{
 			Name:       m.Name,
-			ModifiedAt: time.Now(), // Placeholder
-			Size:       0,          // Placeholder
+			ModifiedAt: time.Now(), // Placeholder: actual modification time not tracked
+			Size:       0,          // Placeholder: ONNX file size could be calculated here
 			Digest:     "sha256:...",
 			Details: Details{
 				Format:            "onnx",
@@ -284,9 +297,6 @@ func (h *Handler) HandleTags(c *gin.Context) {
 				QuantizationLevel: "f32",
 			},
 		})
-		// Also list aliases in tags? Ollama usually only lists the primary names,
-		// but for a drop-in replacement, we might want to list them or keep it clean.
-		// Let's stick to primary names for now to avoid cluttering the list.
 	}
 
 	c.JSON(http.StatusOK, TagResponse{
@@ -294,6 +304,7 @@ func (h *Handler) HandleTags(c *gin.Context) {
 	})
 }
 
+// HandlePs returns information about models currently loaded into memory.
 func (h *Handler) HandlePs(c *gin.Context) {
 	active := h.manager.GetActiveModels()
 	var models []ModelDetails
@@ -310,7 +321,7 @@ func (h *Handler) HandlePs(c *gin.Context) {
 		details := ModelDetails{
 			Name:       name,
 			ModifiedAt: time.Now(), // Loaded recently
-			Size:       0,          // Placeholder
+			Size:       0,
 			Digest:     "sha256:...",
 			Details: Details{
 				Format:            "onnx",
@@ -321,7 +332,7 @@ func (h *Handler) HandlePs(c *gin.Context) {
 			},
 		}
 		if mCfg != nil {
-			// Could customize details based on config if needed
+			// Additional metadata from config could be added here
 		}
 		models = append(models, details)
 	}
@@ -331,6 +342,7 @@ func (h *Handler) HandlePs(c *gin.Context) {
 	})
 }
 
+// HandleShow provides detailed metadata and a simulated "Modelfile" for a specific model.
 func (h *Handler) HandleShow(c *gin.Context) {
 	var req ShowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -352,7 +364,7 @@ func (h *Handler) HandleShow(c *gin.Context) {
 		}
 	}
 
-	// Construct a fake Modelfile for information
+	// Construct a descriptive Modelfile for user information
 	modelfile := fmt.Sprintf("# Modelfile for %s\nFROM %s\n", actualName, actualName)
 	if mCfg != nil {
 		if mCfg.Description != "" {
@@ -389,6 +401,8 @@ func (h *Handler) HandleShow(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// HandleSimilarity calculates semantic similarity scores between a query and multiple documents.
+// It uses normalized dot product (equivalent to cosine similarity) on the generated embeddings.
 func (h *Handler) HandleSimilarity(c *gin.Context) {
 	var req SimilarityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -411,7 +425,7 @@ func (h *Handler) HandleSimilarity(c *gin.Context) {
 		}
 	}
 
-	// Apply prefixes if configured
+	// Apply prefixes if configured for the model (e.g., E5 models)
 	query := req.Query
 	if modelCfg != nil && modelCfg.QueryPrefix != "" {
 		query = modelCfg.QueryPrefix + query
@@ -430,7 +444,7 @@ func (h *Handler) HandleSimilarity(c *gin.Context) {
 	defer func() { <-h.concurrency }()
 
 	start := time.Now()
-	// 1. Get embeddings for all texts (Query + Documents)
+	// 1. Get embeddings for all texts (Query + Documents) in one batch if possible
 	allTexts := append([]string{query}, docs...)
 	embeddings, err := h.manager.Embed(actualModelName, allTexts)
 	duration := time.Since(start)
@@ -439,7 +453,6 @@ func (h *Handler) HandleSimilarity(c *gin.Context) {
 		slog.Error("Similarity failed", "model", actualModelName, "error", err)
 
 		errMsg := err.Error()
-		// Return 400 for user errors
 		if strings.Contains(errMsg, "token limit") ||
 			strings.Contains(errMsg, "empty document") ||
 			strings.Contains(errMsg, "no documents") {
@@ -456,7 +469,7 @@ func (h *Handler) HandleSimilarity(c *gin.Context) {
 	queryEmb := embeddings[0]
 	docEmbeddings := embeddings[1:]
 
-	// 2. Calculate Dot Product (Cosine Similarity because normalized)
+	// 2. Calculate Dot Product (Cosine Similarity because vectors are normalized)
 	var results []SimilarityResult
 	for i, docEmb := range docEmbeddings {
 		var score float32
@@ -475,10 +488,12 @@ func (h *Handler) HandleSimilarity(c *gin.Context) {
 	})
 }
 
+// HandleStats returns usage statistics for the server.
 func (h *Handler) HandleStats(c *gin.Context) {
 	c.JSON(http.StatusOK, h.stats.GetStats())
 }
 
+// HandleGenerate is a stub for the /api/generate endpoint, informing users that this is an embedding-only server.
 func (h *Handler) HandleGenerate(c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, gin.H{
 		"error": "This is an embedding-only server. Chat and text generation are not supported.",

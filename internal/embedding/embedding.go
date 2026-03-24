@@ -17,7 +17,9 @@ import (
 	ort "github.com/yalue/onnxruntime_go"
 )
 
-// findOnnxRuntime searches for the ONNX runtime library in common locations
+// findOnnxRuntime searches for the ONNX runtime library in common locations.
+// It checks the ONNX_PATH environment variable first, then searches relative paths
+// and standard system locations.
 func findOnnxRuntime() string {
 	onnxPath := os.Getenv("ONNX_PATH")
 	if onnxPath != "" {
@@ -38,6 +40,8 @@ func findOnnxRuntime() string {
 	searchPaths := []string{
 		libName,
 		filepath.Join("..", libName),
+		filepath.Join("..", "..", libName),
+		filepath.Join("..", "..", "..", libName),
 		filepath.Join("bin", libName),
 		// RPM standard paths
 		filepath.Join("/usr/lib64/localembed", libName),
@@ -52,6 +56,7 @@ func findOnnxRuntime() string {
 		searchPaths = append(searchPaths, filepath.Join(exeDir, libName))
 		searchPaths = append(searchPaths, filepath.Join(exeDir, "..", "lib64", "localembed", libName))
 		searchPaths = append(searchPaths, filepath.Join(exeDir, "..", "lib", "localembed", libName))
+		searchPaths = append(searchPaths, filepath.Join(exeDir, "..", "..", libName))
 	}
 
 	for _, p := range searchPaths {
@@ -65,14 +70,19 @@ func findOnnxRuntime() string {
 	return ""
 }
 
-// Embedder defines an interface for model execution
+// Embedder defines an interface for model execution, allowing for different
+// implementation strategies (e.g., ONNX, specialized hardware).
 type Embedder interface {
+	// Embed generates normalized embedding vectors for the provided documents.
 	Embed(documents []string) ([][]float32, error)
+	// Close releases resources associated with the embedder.
 	Close() error
+	// SetPooling configures the pooling strategy ("mean" or "cls").
 	SetPooling(pooling string)
 }
 
-// CustomEmbedder implements manual ONNX execution for models
+// CustomEmbedder implements manual ONNX execution for transformer models.
+// It handles tokenization, tensor preparation, and pooling of the results.
 type CustomEmbedder struct {
 	tokenizer *tokenizer.Tokenizer
 	session   *ort.AdvancedSession
@@ -80,7 +90,7 @@ type CustomEmbedder struct {
 	maxLen    int
 	pooling   string // "mean" or "cls"
 
-	// Buffers for input/output to avoid allocations
+	// Buffers for input/output to avoid allocations during inference.
 	inputIds      []int64
 	attentionMask []int64
 	tokenTypeIds  []int64
