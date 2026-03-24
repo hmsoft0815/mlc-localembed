@@ -27,29 +27,36 @@ tasks:
       - task --list
 
   setup:
-    desc: Complete initial setup (Download ONNX, Build, Preload models)
+    desc: Complete initial setup (Download ONNX, Download Tokenizers, Build, Preload models)
     cmds:
       - task: download-onnx
+      - task: download-tokenizers
       - task: build
       - task: preload
 
   build:
     desc: Build all binaries (including Cross-Platform GUI)
+    vars:
+      TARGET_OS: '{{default OS .PLATFORM}}'
     env:
       GOWORK: "off"
+      CGO_LDFLAGS: "-L{{.TASKFILE_DIR}}"
+      CGO_ENABLED: "1"
     cmds:
       - mkdir -p bin
-      - go build -o bin/mlcembedder ./cmd/server/main.go
-      - go build -o bin/cli ./cmd/cli/main.go
-      - go build -o bin/preloader ./cmd/preloader/main.go
       - |
-        # Build Unified GUI (macOS/Windows)
-        if [ "$(uname)" == "Linux" ]; then
-          # Cross-compile for Windows
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -ldflags="-H windowsgui" -o bin/localembed-gui.exe ./cmd/gui || echo "Windows GUI build failed"
-        elif [ "$(uname)" == "Darwin" ]; then
-          # Native build for macOS
-          go build -o bin/localembed-gui ./cmd/gui
+        if [ "{{.TARGET_OS}}" == "windows" ]; then
+          GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go build -o bin/mlcembedder.exe ./cmd/server/main.go
+          GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go build -o bin/cli.exe ./cmd/cli/main.go
+          GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go build -o bin/preloader.exe ./cmd/preloader/main.go
+          GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go build -ldflags="-H windowsgui" -o bin/localembed-gui.exe ./cmd/gui
+        else
+          go build -o bin/mlcembedder ./cmd/server/main.go
+          go build -o bin/cli ./cmd/cli/main.go
+          go build -o bin/preloader ./cmd/preloader/main.go
+          if [ "$(uname)" == "Darwin" ] && [ "{{.TARGET_OS}}" != "linux" ]; then
+            go build -o bin/localembed-gui ./cmd/gui
+          fi
         fi
 
   clean:
@@ -247,3 +254,43 @@ tasks:
     cmds:
       - chmod +x scripts/install.sh
       - ./scripts/install.sh
+
+  download-tokenizers:
+    desc: Download libtokenizers for the specified platform (PLATFORM=linux/darwin/windows)
+    vars:
+      TARGET_OS: '{{default OS .PLATFORM}}'
+    cmds:
+      - |
+        OS="{{.TARGET_OS}}"
+        if [ -z "$OS" ]; then OS=$(uname | tr '[:upper:]' '[:lower:]'); fi
+        ARCH=$(uname -m)
+        VERSION="v1.26.0"
+        echo "Downloading libtokenizers for $OS ($ARCH)..."
+        
+        if [ "$OS" == "darwin" ] || [ "$OS" == "macos" ]; then
+          if [ "$ARCH" == "arm64" ]; then
+            URL="https://github.com/daulet/tokenizers/releases/download/$VERSION/libtokenizers.darwin-arm64.tar.gz"
+          else
+            URL="https://github.com/daulet/tokenizers/releases/download/$VERSION/libtokenizers.darwin-amd64.tar.gz"
+          fi
+        elif [ "$OS" == "linux" ]; then
+          if [ "$ARCH" == "aarch64" ] || [ "$ARCH" == "arm64" ]; then
+            URL="https://github.com/daulet/tokenizers/releases/download/$VERSION/libtokenizers.linux-arm64.tar.gz"
+          else
+            URL="https://github.com/daulet/tokenizers/releases/download/$VERSION/libtokenizers.linux-amd64.tar.gz"
+          fi
+        elif [ "$OS" == "windows" ] || [ "$OS" == "win32" ]; then
+          # Always amd64 for Windows for now
+          URL="https://github.com/daulet/tokenizers/releases/download/$VERSION/libtokenizers.windows-amd64.tar.gz"
+        fi
+
+        # Apply local cache proxy if defined
+        if [ -n "$MLC_CACHE_PROXY" ]; then
+          echo "Using cache proxy: $MLC_CACHE_PROXY"
+          URL=$(echo "$URL" | sed "s|https://github.com|$MLC_CACHE_PROXY/github|")
+        fi
+
+        curl -L $URL -o tokenizers.tar.gz
+        tar -xzf tokenizers.tar.gz libtokenizers.a
+        rm tokenizers.tar.gz
+        echo "libtokenizers.a for $OS downloaded."

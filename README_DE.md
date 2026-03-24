@@ -174,14 +174,14 @@ Obwohl LocalEmbed nun eine unabhängige Implementierung ist, wurde es von den Id
 - [fastembed-go](https://github.com/anush008/fastembed-go) - Die ursprüngliche Go-Implementierung, die dieses Projekt inspiriert hat.
 - [fastembed](https://github.com/qdrant/fastembed) - Die hocheffiziente Python-Bibliothek von Qdrant.
 - [onnxruntime-go](https://github.com/yalue/onnxruntime_go) - Die essenziellen Go-Bindings für ONNX.
-- [tokenizer](https://github.com/sugarme/tokenizer) - Hervorragende Go-Implementierung der Hugging Face Tokenizer.
+- [tokenizers](https://github.com/daulet/tokenizers) - Go-Bindings für Hugging Face Tokenizer.
 
 ## Danksagung
 
 Dieses Projekt ist in erster Linie eine Infrastrukturschicht, die auf exzellenter Vorarbeit aufbaut. Ich bin dankbar, die folgenden Bibliotheken und Runtimes nutzen zu können:
 
 - [onnxruntime-go](https://github.com/yalue/onnxruntime_go) für die performante Modellausführung.
-- [tokenizer](https://github.com/sugarme/tokenizer) für die Textverarbeitung.
+- [tokenizers](https://github.com/daulet/tokenizers) für die Textverarbeitung.
 
 LocalEmbed konzentriert sich darauf, den notwendigen "Klebstoff" bereitzustellen (Ollama-kompatible API, Thread-Management und Modell-Preloading), um diese Werkzeuge in einer Serverumgebung leicht zugänglich zu machen.
 

@@ -40,40 +40,30 @@ jobs:
         with:
           go-version: '1.25.0'
 
-      - name: Download ONNX Runtime
-        shell: bash
-        run: |
-          if [[ "${{ matrix.target }}" == windows* ]]; then
-            curl -L ${{ matrix.onnx_url }} -o onnxruntime.zip
-            unzip onnxruntime.zip
-          else
-            curl -L ${{ matrix.onnx_url }} -o onnxruntime.tgz
-            tar -xzf onnxruntime.tgz
-          fi
-          # Move library to root for building and packaging
-          find . -name "${{ matrix.onnx_lib }}" -exec cp {} . \;
-          # Create symlinks/copies for common names
-          if [[ "${{ matrix.target }}" == linux* ]]; then
-            ln -sf ${{ matrix.onnx_lib }} libonnxruntime.so
-          elif [[ "${{ matrix.target }}" == darwin* ]]; then
-            ln -sf ${{ matrix.onnx_lib }} libonnxruntime.dylib
-          fi
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ github.token }}
 
-      - name: Debug - List Files
+      - name: Download Runtimes
         shell: bash
         run: |
-          pwd
-          ls -R
+          PLATFORM=""
+          if [[ "${{ matrix.target }}" == windows* ]]; then PLATFORM="windows"; fi
+          if [[ "${{ matrix.target }}" == linux* ]]; then PLATFORM="linux"; fi
+          if [[ "${{ matrix.target }}" == darwin* ]]; then PLATFORM="darwin"; fi
+          task download-onnx PLATFORM=$PLATFORM
+          task download-tokenizers PLATFORM=$PLATFORM
 
       - name: Build Binaries
         shell: bash
         run: |
-          mkdir -p bin
-          EXT=""
-          if [[ "${{ matrix.target }}" == windows* ]]; then EXT=".exe"; fi
-          CGO_ENABLED=1 go build -v -o bin/mlcembedder${EXT} ./cmd/server/main.go
-          CGO_ENABLED=1 go build -v -o bin/preloader${EXT} ./cmd/preloader/main.go
-          CGO_ENABLED=1 go build -v -o bin/cli${EXT} ./cmd/cli/main.go
+          PLATFORM=""
+          if [[ "${{ matrix.target }}" == windows* ]]; then PLATFORM="windows"; fi
+          if [[ "${{ matrix.target }}" == linux* ]]; then PLATFORM="linux"; fi
+          if [[ "${{ matrix.target }}" == darwin* ]]; then PLATFORM="darwin"; fi
+          task build PLATFORM=$PLATFORM
 
       - name: Package
         shell: bash
@@ -81,10 +71,16 @@ jobs:
           mkdir -p release
           EXT=""
           if [[ "${{ matrix.target }}" == windows* ]]; then EXT=".exe"; fi
+          LIB_EXT="so"
+          if [[ "${{ matrix.target }}" == windows* ]]; then LIB_EXT="dll"; fi
+          if [[ "${{ matrix.target }}" == darwin* ]]; then LIB_EXT="dylib"; fi
           
+          # In Taskfile build, binaries are placed in bin/
           cp bin/mlcembedder${EXT} bin/preloader${EXT} bin/cli${EXT} release/
           cp LICENSE README.md config.yaml release/
-          cp ${{ matrix.onnx_lib }} release/
+          
+          # Copy ONNX lib (task download-onnx puts it in root)
+          cp *onnxruntime.${LIB_EXT}* release/ 2>/dev/null || cp libonnxruntime.${LIB_EXT} release/
           
           # Add README note about models using a simpler append
           echo "" >> release/README.md

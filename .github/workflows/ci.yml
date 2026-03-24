@@ -20,28 +20,26 @@ jobs:
         with:
           go-version: '1.25.0'
 
-      - name: Download ONNX Runtime
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ github.token }}
+
+      - name: Download Runtimes
         shell: bash
         run: |
-          URL="https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-linux-x64-1.17.0.tgz"
-          LIB="libonnxruntime.so.1.17.0"
-          curl -L $URL -o onnxruntime.tgz
-          tar -xzf onnxruntime.tgz
-          find . -name "$LIB" -exec cp {} . \;
-          ln -sf $LIB libonnxruntime.so
+          task download-onnx
+          task download-tokenizers
 
       - name: Run Tests
         env:
           ONNX_PATH: ${{ github.workspace }}/libonnxruntime.so
           GOWORK: "off"
-        run: go test -v ./...
+        run: task test
 
       - name: Build Check
         env:
           GOWORK: "off"
-        run: |
-          mkdir -p bin
-          CGO_ENABLED=1 go build -v -o bin/mlcembedder${EXT} ./cmd/server/main.go
-          go build -v -o bin/preloader ./cmd/preloader/main.go
-          go build -v -o bin/cli ./cmd/cli/main.go
+        run: task build
 

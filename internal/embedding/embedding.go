@@ -12,8 +12,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/sugarme/tokenizer"
-	"github.com/sugarme/tokenizer/pretrained"
 	ort "github.com/yalue/onnxruntime_go"
 )
 
@@ -84,7 +82,7 @@ type Embedder interface {
 // CustomEmbedder implements manual ONNX execution for transformer models.
 // It handles tokenization, tensor preparation, and pooling of the results.
 type CustomEmbedder struct {
-	tokenizer *tokenizer.Tokenizer
+	tokenizer *TokenizerWrapper
 	session   *ort.AdvancedSession
 	dim       int
 	maxLen    int
@@ -119,28 +117,15 @@ func (e *CustomEmbedder) Embed(docs []string) ([][]float32, error) {
 			return nil, fmt.Errorf("empty document at index %d", idx)
 		}
 
-		en, err := e.tokenizer.EncodeSingle(doc, true)
+		ids, mask, typeIds, err := e.tokenizer.Encode(doc, e.maxLen)
 		if err != nil {
 			return nil, fmt.Errorf("failed to encode document at index %d: %w", idx, err)
 		}
 
-		tokenCount := len(en.GetIds())
-		if tokenCount > e.maxLen {
-			tokenCount = e.maxLen
-		}
-
-		// Reset buffers
-		for i := 0; i < e.maxLen; i++ {
-			if i < tokenCount {
-				e.inputIds[i] = int64(en.GetIds()[i])
-				e.attentionMask[i] = int64(en.GetAttentionMask()[i])
-				e.tokenTypeIds[i] = int64(en.GetTypeIds()[i])
-			} else {
-				e.inputIds[i] = 0
-				e.attentionMask[i] = 0
-				e.tokenTypeIds[i] = 0
-			}
-		}
+		// Copy into pre-allocated buffers
+		copy(e.inputIds, ids)
+		copy(e.attentionMask, mask)
+		copy(e.tokenTypeIds, typeIds)
 
 		if err := e.session.Run(); err != nil {
 			return nil, fmt.Errorf("ONNX execution failed for document %d: %w", idx, err)
@@ -195,6 +180,9 @@ func (e *CustomEmbedder) Embed(docs []string) ([][]float32, error) {
 func (e *CustomEmbedder) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if e.tokenizer != nil {
+		e.tokenizer.Close()
+	}
 	if e.session == nil {
 		return nil
 	}
@@ -371,13 +359,12 @@ func (m *Manager) GetEmbedder(requestedName string) (Embedder, error) {
 
 func NewCustomEmbedderWithFile(modelPath, onnxPath string, dim int, intraThreads, interThreads int, useGPU bool, gpuEP string) (*CustomEmbedder, error) {
 	// 1. Load Tokenizer
-	tk, err := pretrained.FromFile(filepath.Join(modelPath, "tokenizer.json"))
+	tk, err := NewTokenizer(filepath.Join(modelPath, "tokenizer.json"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load tokenizer at %s: %w", modelPath, err)
 	}
 
 	maxLen := 512
-	tk.WithTruncation(nil)
 
 	// 2. Initialize ONNX Environment
 	if !ort.IsInitialized() {

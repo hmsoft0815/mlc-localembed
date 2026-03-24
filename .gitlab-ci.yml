@@ -54,6 +54,7 @@ build-linux:
     - build
   script:
     - task download-onnx
+    - task download-tokenizers
     - task build
     - mkdir -p bin-linux
     - cp bin/mlcembedder bin/cli bin/preloader bin-linux/
@@ -70,6 +71,7 @@ build-macos:
     - macos
   script:
     - task download-onnx
+    - task download-tokenizers
     - task build
     - task package-macos
     - mkdir -p bin-macos
@@ -88,11 +90,9 @@ build-windows-cross:
     - windows-cross
   script:
     - echo "Building for Windows (Cross-Compile)..."
-    # Build all components explicitly for Windows with .exe extension
-    - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o bin/mlcembedder.exe ./cmd/server/main.go
-    - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o bin/cli.exe ./cmd/cli/main.go
-    - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o bin/preloader.exe ./cmd/preloader/main.go
-    - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -ldflags="-H windowsgui" -o bin/localembed-gui.exe ./cmd/gui
+    - task download-onnx PLATFORM=windows
+    - task download-tokenizers PLATFORM=windows
+    - task build PLATFORM=windows
     - mkdir -p bin-windows
     - cp bin/*.exe bin-windows/
   artifacts:
@@ -159,12 +159,15 @@ release-artifacts:
     - mkdir -p release_pkgs
     # Pack Linux
     - task download-onnx PLATFORM=linux
+    - task download-tokenizers PLATFORM=linux
     - tar -czf release_pkgs/localembed-linux-amd64.tar.gz bin-linux/mlcembedder bin-linux/cli bin-linux/preloader libonnxruntime.so LICENSE README.md config.yaml
     # Pack macOS
     - task download-onnx PLATFORM=darwin
+    - task download-tokenizers PLATFORM=darwin
     - tar -czf release_pkgs/localembed-macos-arm64.tar.gz bin-macos/mlcembedder bin-macos/cli bin-macos/preloader libonnxruntime.dylib LICENSE README.md config.yaml
     # Pack Windows
     - task download-onnx PLATFORM=windows
+    - task download-tokenizers PLATFORM=windows
     - zip -j release_pkgs/localembed-windows-amd64.zip bin-windows/*.exe onnxruntime.dll LICENSE README.md config.yaml
     # Build Windows Installer (EXE)
     - makensis packaging/windows/localembed.nsi
