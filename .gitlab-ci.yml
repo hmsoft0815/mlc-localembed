@@ -16,12 +16,8 @@ cache:
 .base_task:
   before_script:
     - |
-      # Set platform specific GOPATH outside of project dir to prevent permission issues
-      if [ "$(uname)" == "Darwin" ]; then
-        export GOPATH=/tmp/gitlab-go-cache
-      else
-        export GOPATH=$CI_BUILDS_DIR/go
-      fi
+      # Standard GOPATH
+      export GOPATH=$CI_BUILDS_DIR/go
       
       # Ensure go/bin is in PATH for task
       export PATH=$PATH:$(go env GOPATH)/bin
@@ -34,16 +30,11 @@ cache:
       # Ensure dependencies are available within the module (ignore go.work)
       export GOWORK=off
       go mod download
-      go mod tidy
 
 .cleanup_task:
   after_script:
     - |
-      if [ "$(uname)" == "Darwin" ]; then
-        export GOPATH=/tmp/gitlab-go-cache
-      else
-        export GOPATH=$CI_BUILDS_DIR/go
-      fi
+      export GOPATH=$CI_BUILDS_DIR/go
       chmod -R +w $GOPATH/pkg/mod || true
 
 build-linux:
