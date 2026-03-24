@@ -372,11 +372,17 @@ tasks:
           export CXX=x86_64-w64-mingw32-g++
           
           cargo build --release --target x86_64-pc-windows-gnu
-          cp target/x86_64-pc-windows-gnu/release/libtokenizers.a "{{.TASKFILE_DIR}}/libtokenizers.a"
+          # Find the built library (it might be in a sub-target dir or named slightly differently)
+          echo "Locating built library..."
+          find target -name "libtokenizers.a" -exec cp {} "{{.TASKFILE_DIR}}/libtokenizers.a" \; 2>/dev/null || true
+          # Fallback for .lib names
+          if [ ! -f "{{.TASKFILE_DIR}}/libtokenizers.a" ]; then
+            find target -name "tokenizers.lib" -exec cp {} "{{.TASKFILE_DIR}}/libtokenizers.a" \; 2>/dev/null || true
+          fi
         else
           # Native build
           cargo build --release
-          cp target/release/libtokenizers.a "{{.TASKFILE_DIR}}/libtokenizers.a"
+          find target -name "libtokenizers.a" -exec cp {} "{{.TASKFILE_DIR}}/libtokenizers.a" \; 2>/dev/null || true
         fi
         
         cd -
