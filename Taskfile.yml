@@ -330,15 +330,19 @@ tasks:
         echo "Compiling libtokenizers for $OS..."
         
         # Get source path from go mod cache (force GOWORK off to get absolute path)
-        MOD_PATH=$(GOWORK=off go list -m -f '{{.Dir}}' github.com/daulet/tokenizers 2>/dev/null || echo "")
+        # We use 'go mod download -json' as it is more reliable in CI environments
+        echo "Resolving module path for github.com/daulet/tokenizers..."
+        MOD_JSON=$(GOWORK=off go mod download -json github.com/daulet/tokenizers@v1.26.0 2>/dev/null || echo "{}")
+        MOD_PATH=$(echo "$MOD_JSON" | grep '"Dir":' | cut -d'"' -f4)
+        
         if [ -z "$MOD_PATH" ] || [ ! -d "$MOD_PATH" ]; then
-          echo "Module not in cache, downloading..."
-          GOWORK=off go mod download github.com/daulet/tokenizers
-          MOD_PATH=$(GOWORK=off go list -m -f '{{.Dir}}' github.com/daulet/tokenizers)
+          # Fallback to go list if json fails
+          MOD_PATH=$(GOWORK=off go list -m -f '{{.Dir}}' github.com/daulet/tokenizers 2>/dev/null || echo "")
         fi
         
         if [ -z "$MOD_PATH" ] || [ ! -d "$MOD_PATH" ]; then
-          echo "Error: github.com/daulet/tokenizers not found even after download"
+          echo "Error: Could not resolve module path for github.com/daulet/tokenizers"
+          echo "Debug info: MOD_JSON=$MOD_JSON"
           exit 1
         fi
         
@@ -355,6 +359,8 @@ tasks:
         
         if [ "$OS" == "windows" ]; then
           # Cross-compile for Windows using MinGW (matches our Go setup)
+          # We need to tell cargo which linker to use for MinGW
+          export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc
           cargo build --release --target x86_64-pc-windows-gnu
           cp target/x86_64-pc-windows-gnu/release/libtokenizers.a "{{.TASKFILE_DIR}}/libtokenizers.a"
         else
