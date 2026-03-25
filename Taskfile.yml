@@ -360,7 +360,8 @@ tasks:
         cp -r "$MOD_PATH/." "$BUILD_DIR/"
         chmod -R +w "$BUILD_DIR"
 
-        cd "$BUILD_DIR"
+        # The C-API is located in crates/tokenizers
+        cd "$BUILD_DIR/crates/tokenizers"
         
         if [ "$OS" == "windows" ]; then
           export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc
@@ -371,18 +372,19 @@ tasks:
           
           cargo build --release --target x86_64-pc-windows-gnu
           echo "Locating built library..."
-          find target -name "libtokenizers.a" -exec cp -v {} "$ROOT_DIR/libtokenizers.a" \;
+          # In workspace builds, target is often in the workspace root
+          find ../../target -name "libtokenizers.a" -exec cp -v {} "$ROOT_DIR/libtokenizers.a" \;
           if [ ! -f "$ROOT_DIR/libtokenizers.a" ]; then
-            find target -name "tokenizers.lib" -exec cp -v {} "$ROOT_DIR/libtokenizers.a" \;
+            find ../../target -name "tokenizers.lib" -exec cp -v {} "$ROOT_DIR/libtokenizers.a" \;
           fi
         else
           cargo build --release
-          find target -name "libtokenizers.a" -exec cp -v {} "$ROOT_DIR/libtokenizers.a" \;
+          find ../../target -name "libtokenizers.a" -exec cp -v {} "$ROOT_DIR/libtokenizers.a" \;
         fi
         
         if [ ! -f "$ROOT_DIR/libtokenizers.a" ]; then
-          echo "❌ Error: Failed to locate compiled libtokenizers.a in $(pwd)/target"
-          ls -R target
+          echo "❌ Error: Failed to locate compiled libtokenizers.a in workspace target"
+          ls -R ../../target
           exit 1
         fi
         
