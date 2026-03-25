@@ -57,8 +57,8 @@ tasks:
       - |
         if [ "{{.TARGET_OS}}" == "windows" ]; then
           # On Windows, we don't have -ldl. CGO might try to add it.
-          # We force CGO_LDFLAGS to NOT include -ldl for windows.
-          export CGO_LDFLAGS="-L{{.TASKFILE_DIR}}"
+          # We also need to link against Windows system libraries that Rust's std requires.
+          export CGO_LDFLAGS="-L{{.TASKFILE_DIR}} -lntdll -lws2_32 -luserenv -lbcrypt"
           if [ ! -f "libtokenizers.a" ]; then
             echo "❌ Error: libtokenizers.a not found before build!"
             ls -la
