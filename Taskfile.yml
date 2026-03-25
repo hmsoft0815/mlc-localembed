@@ -372,16 +372,20 @@ tasks:
           
           cargo build --release --target x86_64-pc-windows-gnu
           echo "Locating built library..."
-          # Cargo might name it libtokenizers_ffi.a or libtokenizers.a
-          find ../../target -name "*tokenizers*.a" -exec cp -v {} "$ROOT_DIR/libtokenizers.a" \;
-          if [ ! -f "$ROOT_DIR/libtokenizers.a" ]; then
-            find ../../target -name "*tokenizers*.lib" -exec cp -v {} "$ROOT_DIR/libtokenizers.a" \;
-          fi
+          # Cargo names it libtokenizers_ffi.a, but Go might look for libtokenizers.a or tokenizers.lib
+          find ../../target -name "*tokenizers*" \( -name "*.a" -o -name "*.lib" \) -exec cp -v {} "$ROOT_DIR/libtokenizers.a" \;
+          # Also provide the ffi-named version just in case
+          find ../../target -name "*tokenizers*" \( -name "*.a" -o -name "*.lib" \) -exec cp -v {} "$ROOT_DIR/libtokenizers_ffi.a" \;
+          # And .lib variants for windows-style lookups
+          cp "$ROOT_DIR/libtokenizers.a" "$ROOT_DIR/tokenizers.lib" 2>/dev/null || true
+          cp "$ROOT_DIR/libtokenizers.a" "$ROOT_DIR/tokenizers_ffi.lib" 2>/dev/null || true
 
           # Create dummy libdl.a for windows (it doesn't exist on windows but some crates hardcode -ldl)
           echo "void dummy_dl() {}" > "$BUILD_DIR/dummy_dl.c"
           x86_64-w64-mingw32-gcc -c "$BUILD_DIR/dummy_dl.c" -o "$BUILD_DIR/dummy_dl.o"
           x86_64-w64-mingw32-ar rcs "$ROOT_DIR/libdl.a" "$BUILD_DIR/dummy_dl.o"
+          # Also provide libdl.lib for good measure
+          cp "$ROOT_DIR/libdl.a" "$ROOT_DIR/dl.lib" 2>/dev/null || true
           echo "✅ Dummy libdl.a for windows created."
         else
           cargo build --release
