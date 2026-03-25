@@ -377,6 +377,12 @@ tasks:
           if [ ! -f "$ROOT_DIR/libtokenizers.a" ]; then
             find ../../target -name "*tokenizers*.lib" -exec cp -v {} "$ROOT_DIR/libtokenizers.a" \;
           fi
+
+          # Create dummy libdl.a for windows (it doesn't exist on windows but some crates hardcode -ldl)
+          echo "void dummy_dl() {}" > "$BUILD_DIR/dummy_dl.c"
+          x86_64-w64-mingw32-gcc -c "$BUILD_DIR/dummy_dl.c" -o "$BUILD_DIR/dummy_dl.o"
+          x86_64-w64-mingw32-ar rcs "$ROOT_DIR/libdl.a" "$BUILD_DIR/dummy_dl.o"
+          echo "✅ Dummy libdl.a for windows created."
         else
           cargo build --release
           find ../../target -name "*tokenizers*.a" -exec cp -v {} "$ROOT_DIR/libtokenizers.a" \;
