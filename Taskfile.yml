@@ -337,62 +337,55 @@ tasks:
         if [ -z "$OS" ]; then OS=$(uname | tr '[:upper:]' '[:lower:]'); fi
         echo "Compiling libtokenizers for $OS..."
         
+        ROOT_DIR=$(pwd)
+        
         # Get source path from go mod cache (force GOWORK off to get absolute path)
-        # We use 'go mod download -json' as it is more reliable in CI environments
         echo "Resolving module path for github.com/daulet/tokenizers..."
         MOD_JSON=$(GOWORK=off go mod download -json github.com/daulet/tokenizers@v1.26.0 2>/dev/null || echo "{}")
         MOD_PATH=$(echo "$MOD_JSON" | grep '"Dir":' | cut -d'"' -f4)
         
         if [ -z "$MOD_PATH" ] || [ ! -d "$MOD_PATH" ]; then
-          # Fallback to go list if json fails
           MOD_PATH=$(GOWORK=off go list -m -f '{{.Dir}}' github.com/daulet/tokenizers 2>/dev/null || echo "")
         fi
         
         if [ -z "$MOD_PATH" ] || [ ! -d "$MOD_PATH" ]; then
           echo "Error: Could not resolve module path for github.com/daulet/tokenizers"
-          echo "Debug info: MOD_JSON=$MOD_JSON"
           exit 1
         fi
         
         echo "Found source at $MOD_PATH"
         
-        # Use temporary build dir to keep the mod cache clean
         BUILD_DIR="/tmp/localembed-build-tokenizers-$(date +%s)"
         mkdir -p "$BUILD_DIR"
-        # Use . to avoid /* expansion issues
         cp -r "$MOD_PATH/." "$BUILD_DIR/"
         chmod -R +w "$BUILD_DIR"
 
         cd "$BUILD_DIR"
         
         if [ "$OS" == "windows" ]; then
-          # Cross-compile for Windows using MinGW (matches our Go setup)
-          echo "Debug: Compiler paths:"
-          which x86_64-w64-mingw32-gcc || echo "gcc not found"
-          which x86_64-w64-mingw32-g++ || echo "g++ not found"
-          
-          # We need to tell cargo which tools to use for MinGW
           export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc
           export CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc
           export CXX_x86_64_pc_windows_gnu=x86_64-w64-mingw32-g++
-          # Fallback for crates that don't use target-specific vars
           export CC=x86_64-w64-mingw32-gcc
           export CXX=x86_64-w64-mingw32-g++
           
           cargo build --release --target x86_64-pc-windows-gnu
-          # Find the built library (it might be in a sub-target dir or named slightly differently)
           echo "Locating built library..."
-          find target -name "libtokenizers.a" -exec cp {} "{{.TASKFILE_DIR}}/libtokenizers.a" \; 2>/dev/null || true
-          # Fallback for .lib names
-          if [ ! -f "{{.TASKFILE_DIR}}/libtokenizers.a" ]; then
-            find target -name "tokenizers.lib" -exec cp {} "{{.TASKFILE_DIR}}/libtokenizers.a" \; 2>/dev/null || true
+          find target -name "libtokenizers.a" -exec cp -v {} "$ROOT_DIR/libtokenizers.a" \;
+          if [ ! -f "$ROOT_DIR/libtokenizers.a" ]; then
+            find target -name "tokenizers.lib" -exec cp -v {} "$ROOT_DIR/libtokenizers.a" \;
           fi
         else
-          # Native build
           cargo build --release
-          find target -name "libtokenizers.a" -exec cp {} "{{.TASKFILE_DIR}}/libtokenizers.a" \; 2>/dev/null || true
+          find target -name "libtokenizers.a" -exec cp -v {} "$ROOT_DIR/libtokenizers.a" \;
+        fi
+        
+        if [ ! -f "$ROOT_DIR/libtokenizers.a" ]; then
+          echo "❌ Error: Failed to locate compiled libtokenizers.a in $(pwd)/target"
+          ls -R target
+          exit 1
         fi
         
         cd -
         rm -rf "$BUILD_DIR"
-        echo "libtokenizers.a for $OS compiled successfully."
+        echo "✅ libtokenizers.a for $OS compiled and moved to $ROOT_DIR"
