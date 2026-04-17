@@ -2,14 +2,12 @@
 
 ## 🔄 Aktuell in Arbeit
 
-- Initial documentation for LocalEmbed completed.
-- Project registered in MLC Doc Hub.
+Completed documentation TODO for INFRASTRUCTURE.md.
 
 ## 📅 Letzte Änderungen
 
-- Registered project `localembed` in registry.
-- Created `INTEGRATION.md`, `TECH_STACK.md`, `API_CONTRACT.md`, and `DECISION_LOG.md`.
-- Verified project facts and deployment options.
+- Created INFRASTRUCTURE.md with hosting, deployment, dependencies, secrets, and monitoring information.
+- Marked TODO for INFRASTRUCTURE.md as completed.
 
 ## ❓ Offene Fragen
 
@@ -17,12 +15,12 @@
 
 ## 🎯 Nächste Schritte
 
-—
+Review remaining documents for consistency. Update API_CONTRACT.md if new endpoints are added.
 
 ---
 
 ## 📋 Meta
 
-- **Zuletzt aktualisiert:** 2026-04-15
-- **Aktualisiert von:** Gemini CLI
+- **Zuletzt aktualisiert:** 2026-04-17
+- **Aktualisiert von:** gemini-2.0-flash-exp
 - **Status:** Aktuell
