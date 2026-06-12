@@ -36,14 +36,19 @@ Unter **Windows** und **macOS** enthält LocalEmbed eine leichtgewichtige **Syst
 
 Das Hauptziel von LocalEmbed ist es, eine **kosteneffiziente und effiziente Infrastruktur** für AI-Anwendungen bereitzustellen. Während leistungsstarke Dienste wie Ollama oder kommerzielle APIs hervorragend für den Betrieb großer Sprachmodelle (LLMs) wie Gemma, Llama oder GPT-4 geeignet sind, kann deren Nutzung für umfangreiche Embedding-Aufgaben teuer sein oder unnötige Latenzen verursachen.
 
-Wir nutzen dieses Tool intern für **RAG (Retrieval-Augmented Generation)** Workflows. Bei RAG müssen Dokumente häufig eingebettet und indiziert werden, um dem LLM Kontext bereitzustellen. Durch die lokale Verarbeitung dieser Embeddings erreichen Sie:
-- **Golang statt Python**: Die meisten Embedding-Bibliotheken basieren auf Python, was oft zur "Dependency Hell" führt (Versionskonflikte, Management virtueller Umgebungen, riesige Container-Images). Go ermöglicht es uns, ein einzelnes, hochperformantes Binary mit minimalen externen Abhängigkeiten zu verteilen.
-- **Kosteneinsparungen**: Keine Kosten pro Token für das Einbetten großer Datensätze zur Indizierung.
-- **Effizienz**: Die optimierte ONNX-Ausführung ist für kleine Embedding-Modelle oft schneller als allgemeine LLM-Runner.
-- **Trennung der Zuständigkeiten**: Halten Sie Ihre "schwere" LLM-Verarbeitung getrennt von Ihren "hochfrequenten" Embedding-Aufgaben.
-- **CPU-First Strategie**: Wir setzen bewusst auf die CPU-Ausführung. Während GPU-Unterstützung jederzeit möglich wäre, erlaubt die CPU-Optimierung den Betrieb auf nahezu jeder Hardware – von modernen M1/M2-Chips bis hin zu ausgedienten Servern oder günstigen Mini-PCs, ohne dass teure GPUs oder komplexe Treiber-Setups nötig sind.
+Wir nutzen dieses Tool intern für **RAG (Retrieval-Augmented Generation)** Workflows sowie unser internes Hilfesystem. Bei RAG müssen Dokumente häufig eingebettet und indiziert werden, um dem LLM Kontext bereitzustellen. Durch die lokale Verarbeitung dieser Embeddings erreichen Sie:
+- **Golang** :
+Go ermöglicht es uns, ein einzelnes, hochperformantes Binary mit minimalen externen Abhängigkeiten zu verteilen.
 
-Dies sollte auf moderner Hardware (z.B. M1 etc.) kein Problem sein – aber seien Sie gewarnt, ältere CPUs könnten bei einigen Modellen Probleme verursachen.
+- **Kosteneinsparungen**: Keine Kosten pro Token für das Einbetten großer Datensätze zur Indizierung.
+
+- **Effizienz**: Die optimierte ONNX-Ausführung ist für kleine Embedding-Modelle oft schneller als allgemeine LLM-Runner.
+
+- **Trennung der Zuständigkeiten**: Halten Sie Ihre "schwere" LLM-Verarbeitung getrennt von Ihren "hochfrequenten" Embedding-Aufgaben.
+
+- **CPU-First Strategie**: Wir setzen bewusst auf die CPU-Ausführung. Während GPU-Unterstützung jederzeit möglich ist, erlaubt die CPU-Optimierung den Betrieb auf nahezu jeder Hardware – von modernen M1/M2-Chips bis hin zu ausgedienten Servern oder günstigen Mini-PCs, ohne dass teure GPUs oder komplexe Treiber-Setups nötig sind.
+
+Dies sollte auf moderner Hardware (z.B. M1 etc.) kein Problem sein – aber seien Sie gewarnt, ältere CPUs könnten bei einigen Modellen Probleme verursachen (siehe unten).
 
 ## Features
 
