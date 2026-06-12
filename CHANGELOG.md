@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.1] - 2026-06-12
+
+### Fixed
+- **RPM packaging**: the `localembed` RPM now builds, installs, and boots
+  end-to-end (verified on Fedora 41). Fixed version drift, binary/man-page
+  naming, the `/var/lib` state dir, host-independent systemd scriptlets, and
+  self-provided `user`/`group(localembed)` to satisfy rpm >= 4.19 auto-deps.
+- Build artifacts (`build/`, `libtokenizers.a`) are now gitignored.
+
 ## [1.4.0] - 2026-03-13
 
 ### Added

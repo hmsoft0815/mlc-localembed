@@ -15,7 +15,7 @@
 %global _sharedstatedir /var/lib
 
 Name:           localembed
-Version:        1.5.0
+Version:        1.5.1
 Release:        1%{?dist}
 Summary:        Fast Local Text Embedding Service
 
@@ -126,6 +126,9 @@ fi
 %dir %attr(0750, localembed, localembed) %{_localstatedir}/log/localembed
 
 %changelog
+* Fri Jun 12 2026 Michael Lechner <m.lechner@example.com> - 1.5.1-1
+- Patch release covering the RPM packaging fixes (build/install/boot verified)
+
 * Fri Jun 12 2026 Michael Lechner <m.lechner@example.com> - 1.5.0-1
 - Package prebuilt binaries (statically linked tokenizer) instead of
   rebuilding inside rpmbuild; no network/CGO toolchain needed at RPM build time
