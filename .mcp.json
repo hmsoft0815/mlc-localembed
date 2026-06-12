@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "mlc-dochub": {
+      "args": [
+        "-dochub-url",
+        "https://mlc.ddnss.de/dochub",
+        "-project-id",
+        "localembed"
+      ],
+      "command": "dochub-mcp"
+    }
+  }
+}

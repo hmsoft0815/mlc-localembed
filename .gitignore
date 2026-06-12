@@ -17,3 +17,9 @@ vendor/
 *.prof
 GEMINI.md
 TODO.md
+
+# RPM / packaging build output
+/build/
+
+# Prebuilt Rust tokenizer static lib (build artifact, fetched/built separately)
+libtokenizers.a
