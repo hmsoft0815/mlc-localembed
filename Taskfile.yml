@@ -249,7 +249,20 @@ tasks:
         
         # Create empty directory for models
         mkdir -p $STAGING/mlcembed
-        
+
+        # Bundle the default model so the RPM works offline out of the box.
+        # The model must be present on the build host (download it once with the
+        # preloader / `task preload`). Fail loudly otherwise so we never ship a
+        # broken RPM whose service exits on an empty models dir.
+        BUNDLE_MODEL=models--qdrant--multilingual-e5-small
+        if [ ! -f "mlcembed/$BUNDLE_MODEL/model.onnx" ]; then
+          echo "❌ Bundled model mlcembed/$BUNDLE_MODEL not found."
+          echo "   Run the preloader first (e.g. 'task preload') so the RPM can ship it."
+          exit 1
+        fi
+        mkdir -p $STAGING/models-bundle
+        cp -r "mlcembed/$BUNDLE_MODEL" $STAGING/models-bundle/
+
         # Create tarball
         TARBALL=$NAME-$VERSION.tar.gz
         tar -czf build/rpmbuild/SOURCES/$TARBALL -C build/staging $NAME-$VERSION

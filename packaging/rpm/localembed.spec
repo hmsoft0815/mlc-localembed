@@ -78,6 +78,12 @@ install -m 0644 packaging/logrotate/localembed.logrotate %{buildroot}%{_sysconfd
 install -m 0644 packaging/man/localembed-server.1 %{buildroot}%{_mandir}/man1/mlcembedder.1
 install -m 0644 packaging/man/localembed-cli.1 %{buildroot}%{_mandir}/man1/localembed-cli.1
 
+# Bundled default model — ships inside the RPM so the service starts and serves
+# embeddings offline out of the box (the server exits if the models dir is empty).
+cp -a models-bundle/. %{buildroot}%{_sharedstatedir}/localembed/models/
+find %{buildroot}%{_sharedstatedir}/localembed/models -type d -exec chmod 0750 {} +
+find %{buildroot}%{_sharedstatedir}/localembed/models -type f -exec chmod 0640 {} +
+
 %pre
 getent group localembed >/dev/null || groupadd -r localembed
 getent passwd localembed >/dev/null || \
@@ -122,7 +128,8 @@ fi
 %{_mandir}/man1/mlcembedder.1.gz
 %{_mandir}/man1/localembed-cli.1.gz
 %dir %attr(0750, localembed, localembed) %{_sharedstatedir}/localembed
-%dir %attr(0750, localembed, localembed) %{_sharedstatedir}/localembed/models
+# No %dir: package the models tree recursively (includes the bundled model)
+%attr(0750, localembed, localembed) %{_sharedstatedir}/localembed/models
 %dir %attr(0750, localembed, localembed) %{_localstatedir}/log/localembed
 
 %changelog
