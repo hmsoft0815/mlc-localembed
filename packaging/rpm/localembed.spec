@@ -126,15 +126,15 @@ fi
 %dir %attr(0750, localembed, localembed) %{_localstatedir}/log/localembed
 
 %changelog
-* Fri Jun 12 2026 Michael Lechner <m.lechner@example.com> - 1.5.1-1
+* Fri Jun 12 2026 Michael Lechner <xsltwonder@gmail.com> - 1.5.1-1
 - Patch release covering the RPM packaging fixes (build/install/boot verified)
 
-* Fri Jun 12 2026 Michael Lechner <m.lechner@example.com> - 1.5.0-1
+* Fri Jun 12 2026 Michael Lechner <xsltwonder@gmail.com> - 1.5.0-1
 - Package prebuilt binaries (statically linked tokenizer) instead of
   rebuilding inside rpmbuild; no network/CGO toolchain needed at RPM build time
 - Align binary names (cli/preloader) and man pages with the build output
 - Store models under /var/lib/localembed/models to match config.yaml.template
-* Wed Mar 04 2026 Michael Lechner <m.lechner@example.com> - 1.2.0-1
+* Wed Mar 04 2026 Michael Lechner <xsltwonder@gmail.com> - 1.2.0-1
 - Update to 1.2.0
 - Added /api/ps and /api/show endpoints
 - Improved compatibility with legacy Ollama API
