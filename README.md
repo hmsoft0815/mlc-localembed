@@ -198,32 +198,68 @@ curl -X POST http://localhost:9142/api/test/similarity \
 3. Run `./bin/preloader` to download models.
 4. Run `./bin/mlcembedder`.
 
-### RPM Installation (Linux / RHEL / AlmaLinux / Fedora)
-We provide RPM packages for easy installation on Enterprise Linux systems.
+### RPM Installation (Fedora 40+ / RHEL · AlmaLinux · Rocky 10+)
+We provide an RPM for Enterprise Linux systems. The package **bundles a default
+model** (`multilingual-e5-small`), so the service starts and serves embeddings
+**offline, out of the box** — no preload step required.
+
+> **glibc note:** the binaries are built against a modern glibc (≥ 2.39). They
+> run on Fedora 40+, RHEL/AlmaLinux/Rocky **10+**, and other recent distros, but
+> **not** on RHEL/AlmaLinux/Rocky 9 (glibc 2.34). For EL9, rebuild the binaries
+> in an EL9 container.
 
 ```bash
-# 1. Build the RPM (requires rpm-build and task)
+# 1. Build the RPM (requires rpm-build + task; the default model must be
+#    present on the build host — run `task preload` once if needed).
 task rpm
 
-# 2. Install the RPM
+# 2. Install it
 sudo dnf install build/rpmbuild/RPMS/x86_64/localembed-*.rpm
 
 # 3. Start and enable the service
 sudo systemctl enable --now localembed
 
-# 4. (Optional) Preload models as the localembed user
-sudo -u localembed localembed-preloader
+# 4. Verify
+curl -s http://localhost:9142/api/health
 ```
 
+**Installing additional models afterwards**
+
+The RPM ships only the default model. To add more, point the preloader at the
+installed config and run it as the service user, then restart:
+
+```bash
+# Downloads every model listed in /etc/localembed/config.yaml into the cache.
+sudo -u localembed localembed-preloader -config /etc/localembed/config.yaml
+
+sudo systemctl restart localembed
+```
+
+To **offer** a model via the API it must be `enabled: true` in the
+`models.available` list of `/etc/localembed/config.yaml` (then restart the
+service). `GET /api/tags` lists what is currently served. The preloader is
+non-interactive when run without a TTY; set `HF_TOKEN` for gated repositories.
+
 **RPM Features:**
-- **Systemd Integration**: Runs as a background service.
-- **Dedicated User**: Runs under the `localembed` service user for better security.
+- **Self-contained**: bundles the default model — works fully offline / air-gapped.
+- **Systemd Integration**: runs as a background service (`journalctl -u localembed`).
+- **Dedicated User**: runs under the `localembed` service user for better security.
 - **Standard Paths**:
-  - Binaries: `/usr/bin/localembed-server`, `/usr/bin/localembed-cli`
-  - Libraries: `/usr/lib64/localembed/libonnxruntime.so`
+  - Binaries: `/usr/bin/mlcembedder` (server), `/usr/bin/localembed-cli`, `/usr/bin/localembed-preloader`
+  - Library: `/usr/lib64/localembed/libonnxruntime.so`
   - Config: `/etc/localembed/config.yaml`
-  - Cache: `/var/lib/localembed/mlcembed`
-- **Logging**: Integration with `journalctl`.
+  - Models: `/var/lib/localembed/models`
+  - Logs: `/var/log/localembed/server.log`
+
+### Native systemd install (Debian / Ubuntu / non-RPM Linux)
+For distros without RPM, use the installer script. It copies the prebuilt
+binaries, ONNX library, config, and model cache from the repo, creates the
+`localembed` service user, installs the systemd unit, and starts the service.
+
+```bash
+task build                                   # build bin/ first
+sudo bash scripts/install-linux-systemd.sh   # install + start the service
+```
 
 ### macOS Installation
 For macOS, we provide a guided installer script that builds the binaries locally and sets up a background service via `launchd`.

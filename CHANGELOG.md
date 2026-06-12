@@ -9,6 +9,12 @@ All notable changes to this project will be documented in this file.
   installs binaries, the ONNX lib, config, a `localembed` service user, the
   systemd unit, seeds models, and starts the service. Verified on Ubuntu.
 
+### Changed
+- **Preloader** is now RPM/automation friendly: accepts `-config <path>` and
+  skips the interactive HuggingFace-token prompt when stdin is not a terminal,
+  so `localembed-preloader -config /etc/localembed/config.yaml` works as the
+  service user. README documents adding models after an RPM install.
+
 ### Fixed
 - **RPM packaging**: the `localembed` RPM now builds, installs, and serves
   embeddings **offline out of the box** (verified on Fedora 41 with no network).

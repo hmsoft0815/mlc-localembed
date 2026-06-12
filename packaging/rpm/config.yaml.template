@@ -41,7 +41,7 @@ models:
 
     - name: "all-minilm"
       source_repo: "Xenova/all-MiniLM-L6-v2"
-      model_file: "model.onnx"
+      model_file: "onnx/model.onnx"
       pooling: "mean"
       dim: 384
       description: "Standard symmetric embedding for comparison"

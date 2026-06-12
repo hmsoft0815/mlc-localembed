@@ -9,6 +9,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -17,8 +18,16 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/term"
 	"gopkg.in/yaml.v3"
 )
+
+// isInteractive reports whether stdin is an interactive terminal. When it is
+// not (e.g. run under systemd, piped, or redirected from /dev/null), the token
+// prompt is skipped and the preloader proceeds anonymously.
+func isInteractive() bool {
+	return term.IsTerminal(int(os.Stdin.Fd()))
+}
 
 type Config struct {
 	Storage struct {
@@ -72,11 +81,17 @@ func downloadFile(url, dest, token string) error {
 }
 
 func main() {
-	configPath := "config.yaml"
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		// Try parent directory (if run from bin/)
-		if _, err := os.Stat("../config.yaml"); err == nil {
-			configPath = "../config.yaml"
+	configFlag := flag.String("config", "", "Path to config.yaml (default: ./config.yaml or ../config.yaml)")
+	flag.Parse()
+
+	configPath := *configFlag
+	if configPath == "" {
+		configPath = "config.yaml"
+		if _, err := os.Stat(configPath); os.IsNotExist(err) {
+			// Try parent directory (if run from bin/)
+			if _, err := os.Stat("../config.yaml"); err == nil {
+				configPath = "../config.yaml"
+			}
 		}
 	}
 
@@ -93,7 +108,7 @@ func main() {
 	token := os.Getenv("HF_TOKEN")
 	cacheProxy := os.Getenv("MLC_CACHE_PROXY")
 
-	if token == "" {
+	if token == "" && isInteractive() {
 		fmt.Print("Hugging Face Token (HF_TOKEN) nicht gefunden. Bitte eingeben (oder ENTER für anonym): ")
 		reader := bufio.NewReader(os.Stdin)
 		input, _ := reader.ReadString('\n')
