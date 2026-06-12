@@ -253,13 +253,18 @@ tasks:
         # Create tarball
         TARBALL=$NAME-$VERSION.tar.gz
         tar -czf build/rpmbuild/SOURCES/$TARBALL -C build/staging $NAME-$VERSION
-      - cp packaging/rpm/localembed.spec build/rpmbuild/SPECS/
+      - |
+        # Inject the version from version.go so the spec never drifts.
+        VERSION=$(grep "const Version =" internal/api/version.go | cut -d'"' -f2 | sed 's/v//')
+        sed "s/^Version:.*/Version:        $VERSION/" packaging/rpm/localembed.spec \
+          > build/rpmbuild/SPECS/localembed.spec
       - rpmbuild --define "_topdir $(pwd)/build/rpmbuild" -ba build/rpmbuild/SPECS/localembed.spec
       - echo "RPM build complete. Packages available in build/rpmbuild/RPMS/"
 
   rpm-test:
-    desc: Run RPM build and installation test in Docker
+    desc: Build the RPM and run an install/boot test in Docker (modern target)
     cmds:
+      - task: rpm
       - docker build -t localembed-rpmtest -f Dockerfile.rpmtest .
 
   package-macos:

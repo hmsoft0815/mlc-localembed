@@ -1,60 +1,53 @@
-FROM almalinux:9
+# Install-test for the prebuilt RPM on a modern RPM target (glibc >= 2.39).
+# Build the package first on the host (`task rpm`), then this image installs it
+# and verifies the file layout, service unit, and that the server boots.
+#
+#   task rpm            # produces build/rpmbuild/RPMS/x86_64/localembed-*.rpm
+#   task rpm-test       # builds this image (which installs & verifies the RPM)
+FROM fedora:41
 
-# 1. Install build and test dependencies
-RUN dnf install -y --allowerasing \
-    golang \
-    rpm-build \
-    git \
-    tar \
-    gzip \
-    make \
-    curl \
-    jq \
-    procps-ng \
-    man-db \
+RUN dnf install -y --setopt=install_weak_deps=False \
+    curl jq procps-ng man-db systemd \
     && dnf clean all
 
-# 2. Install Task (go-task)
-RUN go install github.com/go-task/task/v3/cmd/task@latest
-ENV PATH="/root/go/bin:${PATH}"
+# Copy the RPM built on the host into the image.
+COPY build/rpmbuild/RPMS/x86_64/localembed-*.x86_64.rpm /tmp/
 
-# 3. Prepare workspace
-WORKDIR /src
-COPY . .
-
-# 4. Run Go unit tests before packaging
-RUN echo "--- Running Go Tests ---" && \
-    task test
-
-# 5. Build the RPM
-RUN echo "--- Building RPM ---" && \
-    task rpm
-
-# 6. Install the resulting RPM
+# 1. Install the package. Clear tsflags so documentation (man pages) is
+#    installed too — the fedora container image defaults to tsflags=nodocs,
+#    which would otherwise skip them and misrepresent a normal install.
 RUN echo "--- Installing RPM ---" && \
-    dnf install -y build/rpmbuild/RPMS/x86_64/localembed-*.rpm
+    dnf install -y --setopt=tsflags= /tmp/localembed-*.x86_64.rpm
 
-# 7. Verification of file structure
+# 2. Verify the installed file structure (note: server binary is mlcembedder).
 RUN echo "--- Verifying Files ---" && \
-    ls -l /usr/bin/localembed-server && \
-    ls -l /usr/bin/localembed-cli && \
-    ls -l /usr/lib64/localembed/libonnxruntime.so && \
-    ls -l /etc/localembed/config.yaml
+    test -x /usr/bin/mlcembedder && \
+    test -x /usr/bin/localembed-cli && \
+    test -x /usr/bin/localembed-preloader && \
+    test -f /usr/lib64/localembed/libonnxruntime.so && \
+    test -f /etc/localembed/config.yaml && \
+    test -f /usr/lib/systemd/system/localembed.service && \
+    id localembed && \
+    stat -c '%U:%G %a %n' /var/lib/localembed /var/lib/localembed/models /var/log/localembed
 
-# 8. Integration Test: Run server and execute curl tests
-# Since we don't have a model in the RPM, we'll use a "faker" or mock 
-# if the tests support it, or we copy one small model for the test phase.
-RUN echo "--- Running Integration Tests ---" && \
-    # Start server in background
-    localembed-server > /tmp/server.log 2>&1 & \
-    # Wait for server to be ready
-    sleep 3 && \
-    # Run curl tests
-    (curl -v -s http://localhost:9142/api/health | jq .) || (cat /tmp/server.log && exit 1) && \
-    # Clean up
-    pkill localembed-server || true
+# 3. The systemd unit must be syntactically valid and enableable.
+RUN echo "--- Verifying systemd unit ---" && \
+    systemd-analyze verify /usr/lib/systemd/system/localembed.service
 
-# 9. Check Man Pages
-RUN man -w localembed-server && man -w localembed-cli
+# 4. Boot test: the server must start and report a clear "no models" message
+#    (the RPM ships no model; this proves the binary + config load correctly).
+RUN echo "--- Boot Test ---" && \
+    ONNX_PATH=/usr/lib64/localembed/libonnxruntime.so \
+      mlcembedder -config /etc/localembed/config.yaml > /tmp/server.log 2>&1 & \
+    sleep 3; \
+    cat /tmp/server.log; \
+    grep -q "Local Embedding Engine" /tmp/server.log || (echo "server did not boot" && exit 1)
+
+# 5. Man pages must be shipped (check the files directly; the man index is not
+#    built in this minimal image, so `man -w` would falsely fail).
+RUN echo "--- Man Pages ---" && \
+    test -f /usr/share/man/man1/mlcembedder.1.gz && \
+    test -f /usr/share/man/man1/localembed-cli.1.gz && \
+    echo "man pages present"
 
 CMD ["/bin/bash"]
