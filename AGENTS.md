@@ -116,3 +116,14 @@ The MCP call `mcp__mlc-dochub__get_global_context` returns project-type-
 specific style guides and a language-filtered code style. Call it once
 before creating new docs.
 <!-- mlc-dochub:end -->
+
+## 🧠 Codebase Memory & Intelligence Engine (`cbm`)
+
+Dieses Projekt unterstützt den `codebase-memory` MCP-Server (`cbm-server`) für blitzschnelle strukturelle Codebase-Navigation (<50µs In-Memory Graph, Tree-Sitter ASTs, Call-Hierarchien und Qdrant-Vektorsuche).
+
+### 🛠️ Empfohlener Agent-Workflow:
+1. **Orientierung bei Session-Start:** Rufe `get_repo_map` auf, um die Paketstruktur, Interfaces und Monorepo-Subprojekte kompakt (<400 Tokens) zu erfassen.
+2. **Falls Repository noch nicht indexiert ist:** Rufe einmalig `index_repository(path=".")` auf.
+3. **Funktions- & Aufrufketten analysieren:** Nutze `get_callers`, `get_callees` oder `trace_call_path` anstelle manueller Datei-Suchen.
+4. **Vor Refactorings / Änderungen:** Prüfe Abhängigkeiten mit `simulate_refactoring` oder `get_impact_radius`.
+5. **Git Diff Impact:** Nutze `detect_changes`, um den Blast Radius ungespeicherter Änderungen zu analysieren.
