@@ -57,3 +57,11 @@ models:
       query_prefix: "search_query: "
       document_prefix: "search_document: "
       enabled: true
+    - name: "jinaai/jina-embeddings-v2-base-code"
+      source_repo: "jinaai/jina-embeddings-v2-base-code"
+      model_file: "onnx/model_quantized.onnx"
+      dim: 768
+      description: "Jina code-specialized embedding (EN, quantized)"
+      query_prefix: "search_query: "
+      document_prefix: "search_document: "
+      enabled: true

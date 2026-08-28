@@ -4,6 +4,7 @@
 package embedding
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"os"
@@ -343,6 +344,12 @@ func (m *Manager) GetEmbedder(requestedName string) (Embedder, error) {
 	}
 
 	fullOnnxPath := filepath.Join(path, onnxFile)
+	// Preloader always flattens downloads to the model dir root (filepath.Base),
+	// so prefer the basename when it exists and the relative path was not kept.
+	baseOnnxPath := filepath.Join(path, filepath.Base(onnxFile))
+	if _, err := os.Stat(baseOnnxPath); err == nil {
+		fullOnnxPath = baseOnnxPath
+	}
 
 	newEmb, err := NewCustomEmbedderWithFile(path, fullOnnxPath, dim, intra, inter, useGPU, gpuEP)
 	if err != nil {
@@ -464,29 +471,13 @@ func NewCustomEmbedderWithFile(modelPath, onnxPath string, dim int, intraThreads
 	}
 
 	// 4. Create Session (dynamically detect required inputs)
-	// Some models only have input_ids and attention_mask, others have token_type_ids
-	// We check the model's actual requirements to avoid ONNX runtime panics.
-	tempSession, err := ort.NewAdvancedSession(
-		onnxPath,
-		[]string{"input_ids", "attention_mask", "token_type_ids"},
-		[]string{"last_hidden_state"},
-		[]ort.ArbitraryTensor{t1, t2, t3},
-		[]ort.ArbitraryTensor{tOut},
-		options,
-	)
-
-	// If the above fails, try without token_type_ids (common for RoBERTa/XLM-R)
-	if err != nil {
-		tempSession, err = ort.NewAdvancedSession(
-			onnxPath,
-			[]string{"input_ids", "attention_mask"},
-			[]string{"last_hidden_state"},
-			[]ort.ArbitraryTensor{t1, t2},
-			[]ort.ArbitraryTensor{tOut},
-			options,
-		)
-	}
-
+	// Some models only have input_ids and attention_mask, others have token_type_ids.
+	// We inspect the ONNX graph to pick the right signature: a bound AdvancedSession
+	// fails or panics at Run() time if it has extra missing inputs.
+	inputNames, inputTensors := detectInputSignature(onnxPath, t1, t2, t3)
+	session, err := ort.NewAdvancedSession(onnxPath, inputNames,
+		[]string{"last_hidden_state"}, inputTensors,
+		[]ort.ArbitraryTensor{tOut}, options)
 	if err != nil {
 		t1.Destroy()
 		t2.Destroy()
@@ -494,7 +485,6 @@ func NewCustomEmbedderWithFile(modelPath, onnxPath string, dim int, intraThreads
 		tOut.Destroy()
 		return nil, fmt.Errorf("failed to create session for %s: %w", onnxPath, err)
 	}
-	session := tempSession
 
 	return &CustomEmbedder{
 		tokenizer:     tk,
@@ -508,6 +498,18 @@ func NewCustomEmbedderWithFile(modelPath, onnxPath string, dim int, intraThreads
 		outputData:    outputData,
 		tensors:       []ort.ArbitraryTensor{t1, t2, t3, tOut},
 	}, nil
+}
+
+// detectInputSignature inspects the ONNX graph to decide whether the model
+// has a token_type_ids input. BERT-style models declare it as a graph input
+// (the name appears in the serialized ValueInfo), while Jina / RoBERTa style
+// models only take input_ids + attention_mask.
+func detectInputSignature(onnxPath string, t1, t2, t3 ort.ArbitraryTensor) ([]string, []ort.ArbitraryTensor) {
+	data, err := os.ReadFile(onnxPath)
+	if err != nil || !bytes.Contains(data, []byte("token_type_ids")) {
+		return []string{"input_ids", "attention_mask"}, []ort.ArbitraryTensor{t1, t2}
+	}
+	return []string{"input_ids", "attention_mask", "token_type_ids"}, []ort.ArbitraryTensor{t1, t2, t3}
 }
 
 func NewCustomEmbedder(modelPath string, dim int, intraThreads, interThreads int, useGPU bool, gpuEP string) (*CustomEmbedder, error) {
