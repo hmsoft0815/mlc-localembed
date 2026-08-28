@@ -14,7 +14,7 @@ LocalEmbed is a high-performance Go-based service for generating text embeddings
 
 LocalEmbed is designed to run virtually anywhere:
 - **macOS**: Native support for Apple Silicon (M1, M2, M3, M4, M5) and Intel Macs.
-- **Windows**: Full support with a dedicated System Tray application for easy management.
+- **Windows**: Full support via NSIS installer and a `start.bat` foreground launcher.
 - **Linux**: Tested on Ubuntu Server (x64), but compatible with most modern distributions.
 
 ## Hardware & Performance
@@ -25,12 +25,10 @@ By default, LocalEmbed uses **CPU power only**. For most embedding models (like 
 ### Optional GPU Acceleration
 While CPU is the default, GPU acceleration (CUDA, CoreML, DirectML) can be enabled via `config.yaml` or command-line flags if your hardware supports it.
 
-## User Interface (GUI)
+## Server Management
 
-On **Windows** and **macOS**, LocalEmbed includes a lightweight **System Tray Application**. 
-- **Easy Management**: Start and stop the server with a single click from your taskbar/menubar.
-- **Status Monitoring**: See at a glance if the API is online (🟢) or offline (🔴).
-- **Integrated Tools**: Quick access to server logs and the model preloader.
+- **macOS**: Native Swift Status Bar App plus `launchd` background service.
+- **Windows**: Start the server in the foreground via `start.bat`; for autostart use Windows Task Scheduler or a service wrapper such as nssm.
 
 ## Validation & Accuracy
 

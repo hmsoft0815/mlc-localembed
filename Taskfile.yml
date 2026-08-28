@@ -44,7 +44,7 @@ tasks:
       - go mod tidy
 
   build:
-    desc: Build all binaries (including Cross-Platform GUI)
+    desc: Build all binaries
     vars:
       TARGET_OS: '{{default OS .PLATFORM}}'
     env:
@@ -67,21 +67,21 @@ tasks:
           GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go build -o bin/mlcembedder.exe ./cmd/server/main.go
           GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go build -o bin/cli.exe ./cmd/cli/main.go
           GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go build -o bin/preloader.exe ./cmd/preloader/main.go
-          GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go build -ldflags="-H windowsgui" -o bin/localembed-gui.exe ./cmd/gui
+          # Stage installer payload (bin-windows/) used by packaging/windows/localembed.nsi
+          mkdir -p bin-windows
+          cp bin/mlcembedder.exe bin/cli.exe bin/preloader.exe onnxruntime.dll LICENSE README.md config.yaml bin-windows/
+          printf '%%CD%%\\mlcembedder.exe\npause\n' > bin-windows/start.bat
         else
           go build -o bin/mlcembedder ./cmd/server/main.go
           go build -o bin/cli ./cmd/cli/main.go
           go build -o bin/preloader ./cmd/preloader/main.go
-          if [ "$(uname)" == "Darwin" ] && [ "{{.TARGET_OS}}" != "linux" ]; then
-            go build -o bin/localembed-gui ./cmd/gui
-          fi
         fi
 
   clean:
     desc: Remove binaries and temporary files
     cmds:
       - rm -rf bin
-      - rm -rf cmd/gui-win
+      - rm -rf bin-windows
 
   test:
     desc: Run tests
