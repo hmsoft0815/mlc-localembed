@@ -1,9 +1,13 @@
 {
   "mcpServers": {
+    "codebase-memory": {
+      "args": [
+        "--stdio"
+      ],
+      "command": "cbm-server"
+    },
     "mlc-dochub": {
       "args": [
-        "-dochub-url",
-        "https://mlc.ddnss.de/dochub",
         "-project-id",
         "localembed"
       ],
