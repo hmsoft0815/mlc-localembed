@@ -2,6 +2,8 @@ module mlc-localembed
 
 go 1.25.0
 
+toolchain go1.25.13
+
 require (
 	github.com/daulet/tokenizers v1.26.0
 	github.com/gin-gonic/gin v1.12.0
